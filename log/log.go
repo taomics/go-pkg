@@ -66,9 +66,9 @@ func Log(e *Entry) {
 	}
 
 	if e.Severity < Severity_ERROR {
-		stdout.JSONEncode(e)
+		infolog.JSONEncode(e)
 	} else {
-		stderr.JSONEncode(e)
+		errlog.JSONEncode(e)
 	}
 }
 
@@ -102,35 +102,35 @@ func (l logger) JSONEncode(e *Entry) {
 }
 
 var (
-	stdout = logger{log.New(os.Stdout, "INFO: ", 0), json.NewEncoder(os.Stdout), Severity_INFO}
-	stderr = logger{log.New(os.Stderr, "ERROR: ", 0), json.NewEncoder(os.Stderr), Severity_ERROR}
-	mux    sync.Mutex
+	infolog = logger{log.New(os.Stderr, "INFO: ", 0), json.NewEncoder(os.Stderr), Severity_INFO}
+	errlog  = logger{log.New(os.Stderr, "ERROR: ", 0), json.NewEncoder(os.Stderr), Severity_ERROR}
+	mux     sync.Mutex
 )
 
 func SetFlag(flag int) {
-	stdout.SetFlags(flag)
-	stderr.SetFlags(flag)
+	infolog.SetFlags(flag)
+	errlog.SetFlags(flag)
 }
 
 func SetPrefix(prefix string) {
-	stdout.SetPrefix(prefix)
-	stderr.SetPrefix(prefix)
+	infolog.SetPrefix(prefix)
+	errlog.SetPrefix(prefix)
 }
 
 func SetOutput(w io.Writer) {
 	mux.Lock()
 	defer mux.Unlock()
 
-	stdout.SetOutput(w)
-	stdout.enc = json.NewEncoder(w)
+	infolog.SetOutput(w)
+	infolog.enc = json.NewEncoder(w)
 }
 
 func SetErrorOutput(w io.Writer) {
 	mux.Lock()
 	defer mux.Unlock()
 
-	stderr.SetOutput(w)
-	stderr.enc = json.NewEncoder(w)
+	errlog.SetOutput(w)
+	errlog.enc = json.NewEncoder(w)
 }
 
 func EnableStructuredLogging(enable bool) {
@@ -143,10 +143,10 @@ func EnableStructuredLogging(enable bool) {
 		_Errorln = jsonErrorln
 		_Errorf = jsonErrorf
 		_Fatalln = jsonFatalln
-		stdout.SetFlags(0)
-		stdout.SetPrefix("")
-		stderr.SetFlags(0)
-		stderr.SetPrefix("")
+		infolog.SetFlags(0)
+		infolog.SetPrefix("")
+		errlog.SetFlags(0)
+		errlog.SetPrefix("")
 	} else {
 		_Println = infoln
 		_Printf = infof
@@ -157,47 +157,47 @@ func EnableStructuredLogging(enable bool) {
 }
 
 func infoln(v ...any) {
-	stdout.Println(v...)
+	infolog.Println(v...)
 }
 
 func infof(format string, v ...any) {
-	stdout.Printf(format, v...)
+	infolog.Printf(format, v...)
 }
 
 func errorln(v ...any) {
-	stderr.Println(v...)
+	errlog.Println(v...)
 }
 
 func fatalln(v ...any) {
-	stderr.Output(3, fmt.Sprintln(v...))
+	errlog.Output(3, fmt.Sprintln(v...))
 	os.Exit(1)
 }
 
 func fatalf(format string, v ...any) {
-	stderr.Output(3, fmt.Sprintf(format, v...))
+	errlog.Output(3, fmt.Sprintf(format, v...))
 	os.Exit(1)
 }
 
 func errorf(format string, v ...any) {
-	stderr.Printf(format, v...)
+	errlog.Printf(format, v...)
 }
 
 func jsonInfoln(v ...any) {
 	s := fmt.Sprintln(v...)
-	stdout.JSONEncode(&Entry{Message: s[:len(s)-1]})
+	infolog.JSONEncode(&Entry{Message: s[:len(s)-1]})
 }
 
 func jsonInfof(format string, v ...any) {
-	stdout.JSONEncode(&Entry{Message: fmt.Sprintf(format, v...)})
+	infolog.JSONEncode(&Entry{Message: fmt.Sprintf(format, v...)})
 }
 
 func jsonErrorln(v ...any) {
 	s := fmt.Sprintln(v...)
-	stderr.JSONEncode(&Entry{Message: s[:len(s)-1]})
+	errlog.JSONEncode(&Entry{Message: s[:len(s)-1]})
 }
 
 func jsonErrorf(format string, v ...any) {
-	stderr.JSONEncode(&Entry{Message: fmt.Sprintf(format, v...)})
+	errlog.JSONEncode(&Entry{Message: fmt.Sprintf(format, v...)})
 }
 
 func jsonFatalln(v ...any) {
