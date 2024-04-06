@@ -19,11 +19,11 @@ func AuthUnaryInterceptor(_ ...auth.Option) grpc.UnaryServerInterceptor {
 
 		ah, err := extractGRPCAuthHeader(ctx)
 		if err != nil {
-			return nil, Error(codes.Unauthenticated, "invalid authorization header", "auth_debug: "+err.Error())
+			return nil, Error(codes.Unauthenticated, "invalid authorization header", "auth_develop: "+err.Error())
 		}
 
 		if !strings.HasPrefix(ah, "email ") {
-			return nil, Error(codes.Unauthenticated, "no email", "auth_debug: no email")
+			return nil, Error(codes.Unauthenticated, "no email", "auth_develop: no email")
 		}
 
 		email = ah[len("email "):]
