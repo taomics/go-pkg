@@ -41,7 +41,7 @@ func LogUnaryInterceptors(interceptors ...grpc.UnaryServerInterceptor) grpc.Unar
 
 		var e = log.Entry{
 			Severity: log.Severity_INFO,
-			Labels:   map[string]string{keyGRPCMethod: info.FullMethod, keyGRPCStatus: "OK"},
+			Labels:   map[string]string{keyGRPCMethod: info.FullMethod, keyGRPCStatus: codes.OK.String()},
 		}
 
 		defer func(e *log.Entry) {
@@ -50,6 +50,7 @@ func LogUnaryInterceptors(interceptors ...grpc.UnaryServerInterceptor) grpc.Unar
 				e.Severity = log.Severity_CRITICAL
 				e.Message = fmt.Sprintf("panic: %+v", rerr)
 				e.Labels[keyStackTrace] = st
+				e.Labels[keyGRPCStatus] = codes.Aborted.String()
 				err = status.Error(codes.Aborted, "internal error")
 			}
 

@@ -4,7 +4,7 @@ go 1.22.1
 
 require (
 	github.com/taomics/go-pkg/auth v0.0.1
-	github.com/taomics/go-pkg/log v0.0.1
+	github.com/taomics/go-pkg/log v0.0.2
 	google.golang.org/grpc v1.63.0
 )
 

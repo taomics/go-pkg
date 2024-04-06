@@ -32,8 +32,8 @@ github.com/stretchr/testify v1.9.0 h1:HtqpIVDClZ4nwg75+f6Lvsy/wHu+3BoSGCbBAcpTsT
 github.com/stretchr/testify v1.9.0/go.mod h1:r2ic/lqez/lEtzL7wO/rwa5dbSLXVDPFyf8C91i36aY=
 github.com/taomics/go-pkg/auth v0.0.1 h1:F76oekcOhuq15bu9ijGFLIhWoN8jFQbnfb/MjE0/ne0=
 github.com/taomics/go-pkg/auth v0.0.1/go.mod h1:BL8vFk9CxQnly49Rkg7NmnFOXyKp/ojCz97NUxQ/dAA=
-github.com/taomics/go-pkg/log v0.0.1 h1:YGjvzbgft2pj1H12XjlqHTClJqm78q+/FZqBynBxfAA=
-github.com/taomics/go-pkg/log v0.0.1/go.mod h1:fS/vpnDWeDReKnqStmIj8qxpt6RgEopD0yQLm6nHAUo=
+github.com/taomics/go-pkg/log v0.0.2 h1:WhExjp0FXWE16ARIkUj5d2Yg0T9Vg2NpkkOkMpkLPNw=
+github.com/taomics/go-pkg/log v0.0.2/go.mod h1:fS/vpnDWeDReKnqStmIj8qxpt6RgEopD0yQLm6nHAUo=
 golang.org/x/crypto v0.21.0 h1:X31++rzVUdKhX5sWmSOFZxx8UW/ldWx55cbf08iNAMA=
 golang.org/x/crypto v0.21.0/go.mod h1:0BP7YvVV9gBbVKyeTG0Gyn+gZm94bibOW5BjDEYAOMs=
 golang.org/x/net v0.21.0 h1:AQyQV4dYCvJ7vGmJyKki9+PBdyvhkSd8EIx/qb0AYv4=
