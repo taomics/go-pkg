@@ -22,6 +22,10 @@ func Error(c codes.Code, grpcMsg, logMsg string) error {
 	return &grpcErr{s: status.New(c, grpcMsg), logMsg: logMsg}
 }
 
+func Errorf(c codes.Code, grpcMsg, logFormat string, v ...any) error {
+	return &grpcErr{s: status.New(c, grpcMsg), logMsg: fmt.Sprintf(logFormat, v...)}
+}
+
 func extractGRPCAuthHeader(ctx context.Context) (string, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
