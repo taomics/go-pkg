@@ -1,0 +1,34 @@
+name: auth
+
+on:
+  pull_request:
+    paths:
+      - 'auth/**'
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.22'
+
+    - name: Install dependencies
+      working-directory: ./auth
+      run: go mod download
+
+    - name: Run golangci-lint
+      uses: golangci/golangci-lint-action@v5
+      with:
+        version: latest
+        working-directory: ./auth
+
+    - name: Run tests
+      working-directory: ./auth
+      run: go test -v ./...
+

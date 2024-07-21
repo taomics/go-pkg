@@ -24,7 +24,7 @@ func Email(ctx context.Context) (string, error) {
 
 	s, ok := v.(string)
 	if !ok || s == "" {
-		return "", fmt.Errorf("no email")
+		return "", fmt.Errorf("no email") //nolint:perfsprint
 	}
 
 	return s, nil
@@ -70,12 +70,12 @@ func Authenticate(ctx context.Context, authHeader string, opts ...Option) (conte
 
 	t, err := adb2c.Parse(ctx, opt.azureADB2CTenant, []byte(token))
 	if err != nil {
-		return nil, fmt.Errorf("token parse error: %s", err)
+		return nil, fmt.Errorf("token parse error: %w", err)
 	}
 
 	email, err := adb2c.Email(t)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get email: %s", err)
+		return nil, fmt.Errorf("failed to get email: %w", err)
 	}
 
 	return SetEmail(ctx, email), nil
@@ -89,7 +89,7 @@ func extractBearerToken(ah string) (string, error) {
 
 	// use TrimPrefix instead of HasPrefix because TrimPrefix is faster.
 	if len(strings.TrimPrefix(ah, "Bearer ")) == n && len(strings.TrimPrefix(ah, "bearer ")) == n {
-		return "", fmt.Errorf("authorization header should start with bearer: " + ah[:15] + "...")
+		return "", fmt.Errorf("authorization header should start with bearer: %s*", ah[:15])
 	}
 
 	return ah[lenBearer:], nil
