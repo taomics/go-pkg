@@ -14,9 +14,7 @@ import (
 	"time"
 )
 
-var (
-	ErrInvalidEndpoint = errors.New("invalid endpoint")
-)
+var ErrInvalidEndpoint = errors.New("invalid endpoint")
 
 type AzureManagedIdentityOption func(*azureFetchOption)
 
@@ -36,6 +34,8 @@ type AzureManagedIdentity struct {
 }
 
 // https://github.com/Azure/azure-sdk-for-go/blob/main/sdk/azidentity/TROUBLESHOOTING.md#verify-the-app-service-managed-identity-endpoint-is-available
+//
+//nolint:funlen
 func GetAzureManagedIdentity(ctx context.Context, opts ...AzureManagedIdentityOption) (*AzureManagedIdentity, error) {
 	const (
 		apiVersion          = "2019-08-01"
@@ -45,7 +45,7 @@ func GetAzureManagedIdentity(ctx context.Context, opts ...AzureManagedIdentityOp
 	)
 
 	opt := azureFetchOption{
-		maxAttempts: 5,
+		maxAttempts: 5, //nolint:mnd
 	}
 
 	for _, f := range opts {
@@ -69,7 +69,7 @@ func GetAzureManagedIdentity(ctx context.Context, opts ...AzureManagedIdentityOp
 
 	u.RawQuery = q.Encode()
 
-	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("invalid request: %w", err)
 	}
@@ -94,7 +94,7 @@ func GetAzureManagedIdentity(ctx context.Context, opts ...AzureManagedIdentityOp
 		}
 
 		slog.Warn("go-pkg/identity: retrying in 5 seconds...", "error", err)
-		time.Sleep(5 * time.Second)
+		time.Sleep(5 * time.Second) //nolint:mnd
 	}
 
 	defer res.Body.Close()
@@ -102,16 +102,20 @@ func GetAzureManagedIdentity(ctx context.Context, opts ...AzureManagedIdentityOp
 	if res.StatusCode != http.StatusOK {
 		buf, err := io.ReadAll(res.Body)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to read body: %w", err)
 		}
 
 		return nil, fmt.Errorf("unexpected status %d: %s: %s", res.StatusCode, string(buf), u)
 	}
 
+	return azureManagedIdentityFromResponseBody(res.Body)
+}
+
+func azureManagedIdentityFromResponseBody(body io.Reader) (*AzureManagedIdentity, error) {
 	obj := make(map[string]any)
 
-	if err := json.NewDecoder(res.Body).Decode(&obj); err != nil {
-		return nil, err
+	if err := json.NewDecoder(body).Decode(&obj); err != nil {
+		return nil, fmt.Errorf("invalid json body: %w", err)
 	}
 
 	at, ok := obj["access_token"]
@@ -136,7 +140,7 @@ func GetAzureManagedIdentity(ctx context.Context, opts ...AzureManagedIdentityOp
 
 	n, err := strconv.Atoi(sexp)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("invalid expires_on value: %w", err)
 	}
 
 	t := time.Unix(int64(n), 0)
@@ -150,19 +154,22 @@ func GetAzureManagedIdentity(ctx context.Context, opts ...AzureManagedIdentityOp
 	}, nil
 }
 
+//nolint:cyclop,funlen,gocognit
 func (a *AzureManagedIdentity) RunRefreshLoop(
 	ctx context.Context,
 	callback func(*AzureManagedIdentity, error) error,
 	opts ...AzureManagedIdentityOption,
 ) error {
 	const retryInterval = 5 * time.Minute
+
 	d, err := refreshDuration(a.ExpiresOn)
 	if err != nil {
 		return err
 	}
-	ti := time.NewTimer(d)
 
+	ti := time.NewTimer(d)
 	slog.Info("go-pkg/identity: starting azure managed identity refresh loop", "next_refresh", d)
+
 	go func() {
 		for {
 			select {
@@ -198,10 +205,12 @@ func (a *AzureManagedIdentity) RunRefreshLoop(
 					}
 
 					ti.Reset(retryInterval)
+
 					break
 				}
 
 				slog.Info("go-pkg/identity: azure managed identity refreshed", "next_refresh", d)
+
 				a.AccessToken = token.AccessToken
 				a.ExpiresOn = token.ExpiresOn
 

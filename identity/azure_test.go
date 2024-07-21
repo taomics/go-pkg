@@ -17,6 +17,8 @@ import (
 )
 
 func TestAzure_GetAzureManagedIdentity(t *testing.T) {
+	t.Parallel()
+
 	if v := os.Getenv("IDENTITY_ENDPOINT"); v != "" {
 		t.Fatal("IDENTITY_ENDPOINT should not be set for test")
 	}
@@ -30,8 +32,7 @@ func TestAzure_GetAzureManagedIdentity(t *testing.T) {
 }
 
 func TestAzure_RunRefreshLoop_update(t *testing.T) {
-	os.Setenv("IDENTITY_ENDPOINT", "http://test")
-	defer os.Unsetenv("IDENTITY_ENDPOINT")
+	t.Setenv("IDENTITY_ENDPOINT", "http://test")
 
 	ctx := context.Background()
 
@@ -62,17 +63,17 @@ func TestAzure_RunRefreshLoop_update(t *testing.T) {
 		if err != nil {
 			t.Errorf("should not return error: %s", err)
 		} else {
-			if "test token 2" != token.AccessToken {
+			if "test token 2" != token.AccessToken { //nolint:stylecheck
 				t.Errorf(`want "test token 2", got %q`, token.AccessToken)
 			}
 		}
 
 		done <- struct{}{}
+
 		tested = true
 
 		return nil
 	})
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,8 +96,7 @@ func TestAzure_RunRefreshLoop_update(t *testing.T) {
 }
 
 func TestAzure_RunRefreshLoop_failUpdate(t *testing.T) {
-	os.Setenv("IDENTITY_ENDPOINT", "http://test")
-	defer os.Unsetenv("IDENTITY_ENDPOINT")
+	t.Setenv("IDENTITY_ENDPOINT", "http://test")
 
 	ctx := context.Background()
 
@@ -116,7 +116,7 @@ func TestAzure_RunRefreshLoop_failUpdate(t *testing.T) {
 
 	done := make(chan struct{})
 
-	err := aid.RunRefreshLoop(ctx, func(token *identity.AzureManagedIdentity, err error) error {
+	err := aid.RunRefreshLoop(ctx, func(_ *identity.AzureManagedIdentity, err error) error {
 		if err == nil {
 			t.Errorf("should return error")
 		} else {
@@ -127,7 +127,6 @@ func TestAzure_RunRefreshLoop_failUpdate(t *testing.T) {
 
 		return nil
 	})
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -159,14 +158,15 @@ type testFetcherBody struct {
 	ExpiresOn   string `json:"expires_on"`
 }
 
-func (f *testFetcher) Fetch(ctx context.Context, req *http.Request) (*http.Response, error) {
+func (f *testFetcher) Fetch(_ context.Context, _ *http.Request) (*http.Response, error) {
 	var b bytes.Buffer
 	if f.body != nil {
 		if err := json.NewEncoder(&b).Encode(f.body); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("invalid json body: %w", err)
 		}
 	}
 
+	//nolint:exhaustruct
 	res := http.Response{
 		StatusCode: f.status,
 		Body:       io.NopCloser(&b),

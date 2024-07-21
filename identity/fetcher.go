@@ -5,15 +5,15 @@ import (
 	"net/http"
 )
 
-var defaultFetcher Fetcher = httpFetcher{&http.Client{}}
+var defaultFetcher Fetcher = httpFetcher{new(http.Client)}
 
 type Fetcher interface {
-	Fetch(context.Context, *http.Request) (*http.Response, error)
+	Fetch(ctx context.Context, req *http.Request) (*http.Response, error)
 }
 
 func SetFetcher(f Fetcher) {
 	if f == nil {
-		f = httpFetcher{&http.Client{}}
+		f = httpFetcher{new(http.Client)}
 	}
 
 	defaultFetcher = f
@@ -24,5 +24,5 @@ type httpFetcher struct {
 }
 
 func (f httpFetcher) Fetch(ctx context.Context, req *http.Request) (*http.Response, error) {
-	return f.client.Do(req.WithContext(ctx))
+	return f.client.Do(req.WithContext(ctx)) //nolint:wrapcheck
 }
