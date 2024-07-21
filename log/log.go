@@ -23,6 +23,7 @@ const (
 	Severity_EMERGENCY Severity = 800
 )
 
+//nolint:cyclop
 func (s Severity) MarshalJSON() ([]byte, error) {
 	switch s {
 	default:
@@ -137,12 +138,14 @@ func EnableStructuredLogging(enable bool) {
 	mux.Lock()
 	defer mux.Unlock()
 
+	//nolint:wsl
 	if enable {
 		_Println = jsonInfoln
 		_Printf = jsonInfof
 		_Errorln = jsonErrorln
 		_Errorf = jsonErrorf
 		_Fatalln = jsonFatalln
+		_Fatalf = jsonFatalf
 		infolog.SetFlags(0)
 		infolog.SetPrefix("")
 		errlog.SetFlags(0)
@@ -153,6 +156,7 @@ func EnableStructuredLogging(enable bool) {
 		_Errorln = errorln
 		_Errorf = errorf
 		_Fatalln = fatalln
+		_Fatalf = fatalf
 	}
 }
 
@@ -169,12 +173,20 @@ func errorln(v ...any) {
 }
 
 func fatalln(v ...any) {
-	errlog.Output(3, fmt.Sprintln(v...))
+	if err := errlog.Output(3, fmt.Sprintln(v...)); err != nil { //nolint:mnd
+		log.Println(err.Error())
+		log.Println(v...)
+	}
+
 	os.Exit(1)
 }
 
 func fatalf(format string, v ...any) {
-	errlog.Output(3, fmt.Sprintf(format, v...))
+	if err := errlog.Output(3, fmt.Sprintf(format, v...)); err != nil { //nolint:mnd
+		log.Println(err.Error())
+		log.Printf(format, v...)
+	}
+
 	os.Exit(1)
 }
 
@@ -184,20 +196,20 @@ func errorf(format string, v ...any) {
 
 func jsonInfoln(v ...any) {
 	s := fmt.Sprintln(v...)
-	infolog.JSONEncode(&Entry{Message: s[:len(s)-1]})
+	infolog.JSONEncode(&Entry{Message: s[:len(s)-1]}) //nolint:exhaustruct
 }
 
 func jsonInfof(format string, v ...any) {
-	infolog.JSONEncode(&Entry{Message: fmt.Sprintf(format, v...)})
+	infolog.JSONEncode(&Entry{Message: fmt.Sprintf(format, v...)}) //nolint:exhaustruct
 }
 
 func jsonErrorln(v ...any) {
 	s := fmt.Sprintln(v...)
-	errlog.JSONEncode(&Entry{Message: s[:len(s)-1]})
+	errlog.JSONEncode(&Entry{Message: s[:len(s)-1]}) //nolint:exhaustruct
 }
 
 func jsonErrorf(format string, v ...any) {
-	errlog.JSONEncode(&Entry{Message: fmt.Sprintf(format, v...)})
+	errlog.JSONEncode(&Entry{Message: fmt.Sprintf(format, v...)}) //nolint:exhaustruct
 }
 
 func jsonFatalln(v ...any) {

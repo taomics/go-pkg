@@ -1,0 +1,34 @@
+name: log
+
+on:
+  pull_request:
+    paths:
+      - 'log/**'
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.22'
+
+    - name: Install dependencies
+      working-directory: ./log
+      run: go mod download
+
+    - name: Run golangci-lint
+      uses: golangci/golangci-lint-action@v5
+      with:
+        version: latest
+        working-directory: ./log
+
+    - name: Run tests
+      working-directory: ./log
+      run: go test -v ./...
+

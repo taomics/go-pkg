@@ -5,6 +5,7 @@ import (
 	"strings"
 )
 
+//nolint:mnd
 func MaskIPAddress(ipStr string) string {
 	if ipStr == "" {
 		return ""
@@ -18,14 +19,17 @@ func MaskIPAddress(ipStr string) string {
 	if ipv4 := ip.To4(); ipv4 != nil {
 		mask := net.CIDRMask(24, 32) // 255.255.255.0
 		maskedIP := ipv4.Mask(mask)
+
 		return maskedIP.String()
 	}
 
 	mask := net.CIDRMask(48, 128) // ffff:ffff:ffff::
 	maskedIP := ip.Mask(mask)
+
 	return maskedIP.String()
 }
 
+//nolint:mnd
 func MaskEmail(email string) string {
 	parts := strings.SplitN(email, "@", 2)
 	if len(parts) != 2 {

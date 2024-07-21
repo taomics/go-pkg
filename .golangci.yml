@@ -7,9 +7,15 @@ linters:
     - lll
     - varnamelen
     # deprecated
+    - gochecknoglobals
     - gomnd
     - execinquery
 
 linters-settings:
   nlreturn:
     block-size: 3
+
+issues:
+  exclude:
+    - "var-naming: don't use underscores in Go names;"
+    - "ST1003: should not use underscores in Go names;"
