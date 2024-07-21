@@ -5,14 +5,13 @@ package grpcutil
 import (
 	"context"
 
+	"github.com/taomics/go-pkg/auth"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-
-	"github.com/taomics/go-pkg/auth"
 )
 
 func AuthUnaryInterceptor(opts ...auth.Option) grpc.UnaryServerInterceptor {
-	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+	return func(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		ah, err := extractGRPCAuthHeader(ctx)
 		if err != nil {
 			return nil, Error(codes.Unauthenticated, "invalid authorization header", "auth: "+err.Error())

@@ -6,13 +6,12 @@ import (
 	"fmt"
 	"runtime/debug"
 
+	"github.com/taomics/go-pkg/auth"
+	"github.com/taomics/go-pkg/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
-
-	"github.com/taomics/go-pkg/auth"
-	"github.com/taomics/go-pkg/log"
 )
 
 const (
@@ -28,19 +27,21 @@ const (
 	hUserAgent     = "user-agent"
 )
 
+//nolint:cyclop,funlen
 func LogUnaryInterceptors(interceptors ...grpc.UnaryServerInterceptor) grpc.UnaryServerInterceptor {
-	return func(ctx context.Context, res interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
+	return func(ctx context.Context, res interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) { //nolint:contextcheck,nonamedreturns
 		var (
 			chain   = handler
 			lastCtx context.Context
 		)
 
 		for i := len(interceptors) - 1; i >= 0; i-- {
-			chain = buildChain(info, chain, interceptors[i], &lastCtx)
+			chain = buildChain(info, chain, interceptors[i], &lastCtx) //nolint:contextcheck
 		}
 
-		var e = log.Entry{
+		e := log.Entry{
 			Severity: log.Severity_INFO,
+			Message:  "",
 			Labels:   map[string]string{keyGRPCMethod: info.FullMethod, keyGRPCStatus: codes.OK.String()},
 		}
 
@@ -69,20 +70,20 @@ func LogUnaryInterceptors(interceptors ...grpc.UnaryServerInterceptor) grpc.Unar
 			}
 		}
 
-		defer func(ctx *context.Context) {
+		defer func() {
 			if email, err := auth.Email(lastCtx); err == nil {
 				if m := log.MaskEmail(email); m != "" {
 					e.Labels[keyUser] = m
 				}
 			}
-		}(&lastCtx)
+		}()
 
 		resp, err = chain(ctx, res)
 		if err != nil {
 			e.Severity = log.Severity_ERROR
 			e.Message = err.Error()
 
-			if gerr := new(grpcErr); errors.As(err, &gerr) {
+			if gerr := new(grpcError); errors.As(err, &gerr) {
 				err = gerr.s.Err()
 				e.Labels[keyGRPCStatus] = gerr.s.Code().String()
 			} else {
@@ -90,7 +91,7 @@ func LogUnaryInterceptors(interceptors ...grpc.UnaryServerInterceptor) grpc.Unar
 			}
 		}
 
-		return resp, err
+		return resp, err //nolint:wrapcheck
 	}
 }
 
