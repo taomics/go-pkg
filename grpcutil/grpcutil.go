@@ -9,27 +9,27 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-type grpcErr struct {
+type grpcError struct {
 	s      *status.Status
 	logMsg string
 }
 
-func (e *grpcErr) Error() string {
+func (e *grpcError) Error() string {
 	return e.logMsg
 }
 
 func Error(c codes.Code, grpcMsg, logMsg string) error {
-	return &grpcErr{s: status.New(c, grpcMsg), logMsg: logMsg}
+	return &grpcError{s: status.New(c, grpcMsg), logMsg: logMsg}
 }
 
 func Errorf(c codes.Code, grpcMsg, logFormat string, v ...any) error {
-	return &grpcErr{s: status.New(c, grpcMsg), logMsg: fmt.Sprintf(logFormat, v...)}
+	return &grpcError{s: status.New(c, grpcMsg), logMsg: fmt.Sprintf(logFormat, v...)}
 }
 
 func extractGRPCAuthHeader(ctx context.Context) (string, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		return "", fmt.Errorf("failed to get grpc metadata")
+		return "", fmt.Errorf("failed to get grpc metadata") //nolint: perfsprint
 	}
 
 	arr := md.Get(hAuthorization)

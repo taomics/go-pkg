@@ -1,0 +1,15 @@
+linters:
+  enable-all: true
+  disable:
+    - depguard # use gomodguard
+    # not useful
+    - err113
+    - lll
+    - varnamelen
+    # deprecated
+    - gomnd
+    - execinquery
+
+linters-settings:
+  nlreturn:
+    block-size: 3
