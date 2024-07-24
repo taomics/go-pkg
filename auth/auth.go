@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/dictav/go-oidc/adb2c"
+	"github.com/dictav/go-oidc"
 )
 
 type contextKey string
@@ -24,7 +24,7 @@ func Email(ctx context.Context) (string, error) {
 
 	s, ok := v.(string)
 	if !ok || s == "" {
-		return "", fmt.Errorf("no email") //nolint:perfsprint
+		return "", fmt.Errorf("no email")
 	}
 
 	return s, nil
@@ -34,18 +34,15 @@ func SetEmail(ctx context.Context, email string) context.Context {
 	return context.WithValue(ctx, keyEmail, email)
 }
 
+func SetValidAudience(f func(audiences []string) bool) {
+	oidc.SetValidAudience(f)
+}
+
 type option struct {
-	allowNoAuth      bool
 	azureADB2CTenant string
 }
 
 type Option = func(*option)
-
-func WithAllowNoAuth() Option {
-	return func(o *option) {
-		o.allowNoAuth = true
-	}
-}
 
 func WithAzureADB2CTenant(tenant string) Option {
 	return func(o *option) {
@@ -54,13 +51,13 @@ func WithAzureADB2CTenant(tenant string) Option {
 }
 
 func Authenticate(ctx context.Context, authHeader string, opts ...Option) (context.Context, error) {
+	if authHeader == "" {
+		return nil, fmt.Errorf("authorization header is empty")
+	}
+
 	var opt option
 	for _, f := range opts {
 		f(&opt)
-	}
-
-	if opt.allowNoAuth && authHeader == "" {
-		return ctx, nil
 	}
 
 	token, err := extractBearerToken(authHeader)
@@ -68,12 +65,18 @@ func Authenticate(ctx context.Context, authHeader string, opts ...Option) (conte
 		return nil, err
 	}
 
-	t, err := adb2c.Parse(ctx, opt.azureADB2CTenant, []byte(token))
+	var parseOpts []oidc.ParseOption
+
+	if opt.azureADB2CTenant != "" {
+		parseOpts = append(parseOpts, oidc.WithAzureADB2CTenant(opt.azureADB2CTenant))
+	}
+
+	t, err := oidc.Parse(ctx, []byte(token), parseOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("token parse error: %w", err)
 	}
 
-	email, err := adb2c.Email(t)
+	email, err := oidc.Email(t)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get email: %w", err)
 	}
