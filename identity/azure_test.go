@@ -57,7 +57,7 @@ func TestAzure_RunRefreshLoop_update(t *testing.T) {
 
 	err := aid.RunRefreshLoop(ctx, func(token *identity.AzureManagedIdentity, err error) error {
 		if tested {
-			return fmt.Errorf("stop loop")
+			return fmt.Errorf("retry loop")
 		}
 
 		if err != nil {
@@ -78,7 +78,7 @@ func TestAzure_RunRefreshLoop_update(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// first
+	// first: refreshing was excuted.
 	select {
 	case <-time.After(100 * time.Millisecond):
 		t.Error("timeout")
@@ -86,12 +86,12 @@ func TestAzure_RunRefreshLoop_update(t *testing.T) {
 		break
 	}
 
-	// second
+	// second: wait retrying, because callback return error.
 	select {
 	case <-time.After(100 * time.Millisecond):
 		break
 	case <-done:
-		t.Error("should be timeout because that callback return error")
+		t.Error("should be timeout because callback return error")
 	}
 }
 
@@ -120,7 +120,7 @@ func TestAzure_RunRefreshLoop_failUpdate(t *testing.T) {
 		if err == nil {
 			t.Errorf("should return error")
 		} else {
-			t.Log(err)
+			t.Log("loop has stopped", err)
 		}
 
 		done <- struct{}{}
@@ -131,7 +131,7 @@ func TestAzure_RunRefreshLoop_failUpdate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// first
+	// first: refreshing was excuted, but token is not updated
 	select {
 	case <-time.After(100 * time.Millisecond):
 		t.Error("timeout")
@@ -139,12 +139,12 @@ func TestAzure_RunRefreshLoop_failUpdate(t *testing.T) {
 		break
 	}
 
-	// second
+	// second: refreshing was not excuted, because refresh loop has stopped
 	select {
 	case <-time.After(100 * time.Millisecond):
 		break
 	case <-done:
-		t.Error("should be timeout because of fail refresh loop")
+		t.Error("should be timeout because refresh loop has stopped")
 	}
 }
 
