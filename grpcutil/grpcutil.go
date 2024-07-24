@@ -29,7 +29,7 @@ func Errorf(c codes.Code, grpcMsg, logFormat string, v ...any) error {
 func extractGRPCAuthHeader(ctx context.Context) (string, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		return "", fmt.Errorf("failed to get grpc metadata") //nolint: perfsprint
+		return "", fmt.Errorf("failed to get grpc metadata")
 	}
 
 	arr := md.Get(hAuthorization)
