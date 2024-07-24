@@ -168,7 +168,7 @@ func (a *AzureManagedIdentity) RunRefreshLoop(
 	}
 
 	ti := time.NewTimer(d)
-	slog.Info("go-pkg/identity: starting azure managed identity refresh loop", "next_refresh", d)
+	slog.Info("go-pkg/identity: start azure managed identity refresh loop", "next_refresh", d)
 
 	go func() {
 		for {
@@ -177,6 +177,8 @@ func (a *AzureManagedIdentity) RunRefreshLoop(
 				return
 
 			case <-ti.C:
+				slog.Info("go-pkg/identity: refreshing azure managed identity")
+
 				var d time.Duration
 
 				token, err := GetAzureManagedIdentity(ctx, opts...)
@@ -184,35 +186,43 @@ func (a *AzureManagedIdentity) RunRefreshLoop(
 					err = errors.New("token is not updated")
 				}
 
+				// check duration
 				if err == nil {
 					d, err = refreshDuration(token.ExpiresOn)
 				}
 
-				if err != nil {
-					slog.Warn("go-pkg/identity: failed to get new azure managed identity", "error", err)
-				} else {
+				// check callback
+				if err == nil && callback != nil {
 					err = callback(token, nil)
 					if err != nil {
 						slog.Warn("go-pkg/identity: cannot use a new azure managed identity in callback", "error", err)
 					}
 				}
 
-				// retry
+				// failure. retry.
 				if err != nil {
+					slog.Warn("go-pkg/identity: failed to refresh token", "error", err)
+
 					if time.Until(a.ExpiresOn) < retryInterval {
-						_ = callback(nil, fmt.Errorf("token expired too soon, cannot refresh token: expires_on=%s", a.ExpiresOn))
+						// Retire because the token expires too soon and it is impossible to refresh the token before it expires.
+						err := fmt.Errorf("token expired too soon, cannot refresh token: expires_on=%s", a.ExpiresOn)
+						_ = callback(nil, err)
+						slog.Warn("go-pkg/identity: stop azure managed indentity refresh loop", "error", err)
+
 						return
 					}
 
+					slog.Warn("go-pkg/identity: retry", "interval", retryInterval)
 					ti.Reset(retryInterval)
 
 					break
 				}
 
-				slog.Info("go-pkg/identity: azure managed identity refreshed", "next_refresh", d)
-
+				// success. there is no error.
 				a.AccessToken = token.AccessToken
 				a.ExpiresOn = token.ExpiresOn
+
+				slog.Info("go-pkg/identity: azure managed identity refreshed", "expires_on", a.ExpiresOn, "next_refresh", time.Now().Add(d))
 
 				ti.Reset(d)
 			}
@@ -236,8 +246,6 @@ func refreshDuration(t time.Time) (time.Duration, error) {
 	}
 
 	d -= refreshMargion
-
-	slog.Info("go-pkg/identity: refresh duration", "duration", d)
 
 	return d, nil
 }
