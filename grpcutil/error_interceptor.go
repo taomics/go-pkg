@@ -13,7 +13,7 @@ import (
 )
 
 func ErrorUnaryInterceptor(interceptors ...grpc.UnaryServerInterceptor) grpc.UnaryServerInterceptor {
-	return func(ctx context.Context, res interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
+	return func(ctx context.Context, res interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) { //nolint:nonamedreturns
 		var (
 			chain   = handler
 			lastCtx context.Context
@@ -38,7 +38,7 @@ func ErrorUnaryInterceptor(interceptors ...grpc.UnaryServerInterceptor) grpc.Una
 				err = gerr.s.Err()
 			}
 
-			return nil, err
+			return nil, err //nolint:wrapcheck
 		}
 
 		return resp, nil
