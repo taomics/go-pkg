@@ -3,6 +3,7 @@ module github.com/taomics/go-pkg/grpcutil
 go 1.22.1
 
 require (
+	connectrpc.com/connect v1.17.0
 	github.com/taomics/go-pkg/auth v0.0.4
 	github.com/taomics/go-pkg/log v0.0.3
 	google.golang.org/grpc v1.65.0

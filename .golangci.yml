@@ -9,6 +9,7 @@ linters:
     - lll
     - varnamelen
     # deprecated
+    - exportloopref
     - gochecknoglobals
     - gomnd
     - execinquery
