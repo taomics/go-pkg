@@ -84,8 +84,8 @@ func LogUnaryInterceptors(interceptors ...grpc.UnaryServerInterceptor) grpc.Unar
 			e.Message = err.Error()
 
 			if gerr := new(grpcError); errors.As(err, &gerr) {
-				err = gerr.s.Err()
-				e.Labels[keyGRPCStatus] = gerr.s.Code().String()
+				err = status.Error(gerr.code, gerr.grpcMsg)
+				e.Labels[keyGRPCStatus] = gerr.code.String()
 			} else {
 				e.Labels[keyGRPCStatus] = codes.Unknown.String()
 			}
@@ -97,7 +97,7 @@ func LogUnaryInterceptors(interceptors ...grpc.UnaryServerInterceptor) grpc.Unar
 
 func buildChain(info *grpc.UnaryServerInfo, handle grpc.UnaryHandler, intr grpc.UnaryServerInterceptor, lastCtx *context.Context) grpc.UnaryHandler {
 	return func(ctx context.Context, req interface{}) (interface{}, error) {
-		*lastCtx = ctx
+		*lastCtx = ctx //nolint:fatcontext
 		return intr(ctx, req, info, handle)
 	}
 }
