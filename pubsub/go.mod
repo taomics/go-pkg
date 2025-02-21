@@ -2,7 +2,7 @@ module github.com/taomics/go-pkg/pubsub
 
 go 1.22.7
 
-toolchain go1.24.0
+toolchain go1.23.0
 
 require (
 	cloud.google.com/go/pubsub v1.47.0
