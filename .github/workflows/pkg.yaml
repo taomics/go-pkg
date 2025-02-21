@@ -1,0 +1,17 @@
+# This workflow is dummy for pass blocking PRs
+name: pkg
+
+on:
+  pull_request:
+    paths:
+      - './github/**'
+      - README.md
+      - go.mod
+      - .golangci.yml
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - run: echo "This is a dummy workflow to pass blocking PRs"
