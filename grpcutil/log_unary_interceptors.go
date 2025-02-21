@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/protoadapt"
 )
 
 const (
@@ -84,8 +85,19 @@ func LogUnaryInterceptors(interceptors ...grpc.UnaryServerInterceptor) grpc.Unar
 			e.Message = err.Error()
 
 			if gerr := new(grpcError); errors.As(err, &gerr) {
-				err = gerr.s.Err()
-				e.Labels[keyGRPCStatus] = gerr.s.Code().String()
+				sdetails := make([]protoadapt.MessageV1, len(gerr.details))
+				for i, d := range gerr.details {
+					sdetails[i] = protoadapt.MessageV1Of(d)
+				}
+
+				s := status.New(gerr.code, gerr.grpcMsg)
+				if s2, e := s.WithDetails(sdetails...); e == nil {
+					err = s2.Err()
+				} else {
+					err = s.Err()
+				}
+
+				e.Labels[keyGRPCStatus] = gerr.code.String()
 			} else {
 				e.Labels[keyGRPCStatus] = codes.Unknown.String()
 			}
@@ -97,7 +109,7 @@ func LogUnaryInterceptors(interceptors ...grpc.UnaryServerInterceptor) grpc.Unar
 
 func buildChain(info *grpc.UnaryServerInfo, handle grpc.UnaryHandler, intr grpc.UnaryServerInterceptor, lastCtx *context.Context) grpc.UnaryHandler {
 	return func(ctx context.Context, req interface{}) (interface{}, error) {
-		*lastCtx = ctx
+		*lastCtx = ctx //nolint:fatcontext
 		return intr(ctx, req, info, handle)
 	}
 }
