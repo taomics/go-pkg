@@ -35,7 +35,7 @@ func ErrorUnaryInterceptor(interceptors ...grpc.UnaryServerInterceptor) grpc.Una
 		if err != nil {
 			if gerr := new(grpcError); errors.As(err, &gerr) {
 				slog.Error(gerr.Error())
-				err = gerr.s.Err()
+				err = status.Error(gerr.code, gerr.grpcMsg)
 			}
 
 			return nil, err //nolint:wrapcheck
