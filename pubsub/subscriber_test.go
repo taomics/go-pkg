@@ -11,11 +11,15 @@ import (
 )
 
 type mockMessageHandler struct {
-	handleFunc func([]byte) error
+	handleFunc func(context.Context, []byte) error
 }
 
-func (m *mockMessageHandler) Handle(message []byte) error {
-	return m.handleFunc(message)
+func (m *mockMessageHandler) Handle(ctx context.Context, message []byte) error {
+	if m.handleFunc != nil {
+		return m.handleFunc(ctx, message)
+	}
+
+	return nil
 }
 
 func TestNewSubscriptionHandler(t *testing.T) {
@@ -25,16 +29,14 @@ func TestNewSubscriptionHandler(t *testing.T) {
 		name           string
 		method         string
 		body           string
-		handleFunc     func([]byte) error
+		handleFunc     func(context.Context, []byte) error
 		wantStatusCode int
 	}{
 		{
-			name:   "valid message",
-			method: http.MethodPost,
-			body:   `{"message":{"data":"eyJoZWFsdGhmZWVkYmFja19pZCI6InRlc3QifQ=="}}`,
-			handleFunc: func(_ []byte) error {
-				return nil
-			},
+			name:           "valid message",
+			method:         http.MethodPost,
+			body:           `{"message":{"data":"eyJoZWFsdGhmZWVkYmFja19pZCI6InRlc3QifQ=="}}`,
+			handleFunc:     nil,
 			wantStatusCode: http.StatusOK,
 		},
 		{
@@ -44,12 +46,23 @@ func TestNewSubscriptionHandler(t *testing.T) {
 			handleFunc:     nil,
 			wantStatusCode: http.StatusMethodNotAllowed,
 		},
+		// status code 102, 200, 201, 202, or 204 is considered as ACK. Others are NACK.
+		// https://cloud.google.com/pubsub/docs/push
 		{
 			name:           "invalid json",
 			method:         http.MethodPost,
 			body:           `invalid json`,
 			handleFunc:     nil,
-			wantStatusCode: http.StatusBadRequest,
+			wantStatusCode: http.StatusOK,
+		},
+		{
+			name:   "retryable error",
+			method: http.MethodPost,
+			body:   `{"message":{"data":"eyJoZWFsdGhmZWVkYmFja19pZCI6InRlc3QifQ=="}}`,
+			handleFunc: func(_ context.Context, _ []byte) error {
+				return pubsub.RetryableError("retry")
+			},
+			wantStatusCode: http.StatusInternalServerError,
 		},
 	}
 

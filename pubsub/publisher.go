@@ -11,7 +11,26 @@ import (
 
 // Publisher defines the interface for publishing messages to topics.
 type Publisher interface {
-	Publish(ctx context.Context, topic string, message interface{}) error
+	Publish(ctx context.Context, topic string, message Message, opts ...PublishOption) error
+}
+
+type puslishOption struct {
+	attr  map[string]string
+	order string
+}
+
+type PublishOption func(*puslishOption)
+
+func WithAttributes(attr map[string]string) PublishOption {
+	return func(o *puslishOption) {
+		o.attr = attr
+	}
+}
+
+func WithOrderingKey(order string) PublishOption {
+	return func(o *puslishOption) {
+		o.order = order
+	}
 }
 
 // client wraps pubsub.Client to implement Client interface.
@@ -30,7 +49,12 @@ func NewPublisher(ctx context.Context, projectID string) (Publisher, error) {
 }
 
 // Publish publishes a message to the specified topic.
-func (p *client) Publish(ctx context.Context, topic string, message interface{}) error {
+func (p *client) Publish(ctx context.Context, topic string, message Message, opts ...PublishOption) error {
+	var popts puslishOption
+	for _, f := range opts {
+		f(&popts)
+	}
+
 	t := p.c.Topic(topic)
 	defer t.Stop()
 
@@ -41,8 +65,8 @@ func (p *client) Publish(ctx context.Context, topic string, message interface{})
 
 	result := t.Publish(ctx, &pubsub.Message{
 		Data:        data,
-		Attributes:  nil,
-		OrderingKey: "", // unordered
+		Attributes:  popts.attr,
+		OrderingKey: popts.order,
 	})
 	if _, err := result.Get(ctx); err != nil {
 		log.Errorf("failed to publish message: %v", err)
