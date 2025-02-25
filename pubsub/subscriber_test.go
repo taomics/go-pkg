@@ -11,11 +11,11 @@ import (
 )
 
 type mockMessageHandler struct {
-	handleFunc func([]byte) error
+	handleFunc func(context.Context, []byte) error
 }
 
-func (m *mockMessageHandler) Handle(message []byte) error {
-	return m.handleFunc(message)
+func (m *mockMessageHandler) Handle(ctx context.Context, message []byte) error {
+	return m.handleFunc(ctx, message)
 }
 
 func TestNewSubscriptionHandler(t *testing.T) {
@@ -25,14 +25,14 @@ func TestNewSubscriptionHandler(t *testing.T) {
 		name           string
 		method         string
 		body           string
-		handleFunc     func([]byte) error
+		handleFunc     func(context.Context, []byte) error
 		wantStatusCode int
 	}{
 		{
 			name:   "valid message",
 			method: http.MethodPost,
 			body:   `{"message":{"data":"eyJoZWFsdGhmZWVkYmFja19pZCI6InRlc3QifQ=="}}`,
-			handleFunc: func(_ []byte) error {
+			handleFunc: func(_ context.Context, _ []byte) error {
 				return nil
 			},
 			wantStatusCode: http.StatusOK,

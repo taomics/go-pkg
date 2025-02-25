@@ -9,8 +9,8 @@ linters:
     - lll
     - varnamelen
     # deprecated
-    - exportloopref
     - gochecknoglobals
+    - tenv
 
 linters-settings:
   nlreturn:
