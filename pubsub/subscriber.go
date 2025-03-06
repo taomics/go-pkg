@@ -61,7 +61,7 @@ func NewSubscriptionHandler(handler MessageHandler) http.HandlerFunc {
 		}
 
 		if err := handler.Handle(r.Context(), msg.Message.Data); err != nil {
-			log.Errorf("failed to handle message: %v: msg=%+v: %v", err, msg)
+			log.Errorf("failed to handle message: id=%s body=%d bytes: %v", msg.Message.ID, len(msg.Message.Data), err)
 
 			if errors.Is(err, errRetryable) {
 				w.WriteHeader(http.StatusInternalServerError)
