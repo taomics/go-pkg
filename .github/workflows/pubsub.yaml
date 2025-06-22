@@ -16,14 +16,14 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v4
       with:
-        go-version: '1.22'
+        go-version: '1.24'
 
     - name: Install dependencies
       working-directory: ./pubsub
       run: go mod download
 
     - name: Run golangci-lint
-      uses: golangci/golangci-lint-action@v5
+      uses: golangci/golangci-lint-action@v8
       with:
         version: latest
         working-directory: ./pubsub

@@ -63,6 +63,7 @@ func (p *client) Publish(ctx context.Context, topic string, message Message, opt
 		return fmt.Errorf("failed to marshal message: %w", err)
 	}
 
+	//nolint:exhaustruct
 	result := t.Publish(ctx, &pubsub.Message{
 		Data:        data,
 		Attributes:  popts.attr,
