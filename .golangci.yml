@@ -1,28 +1,48 @@
+version: "2"
 linters:
-  enable-all: true
+  default: all
   disable:
-    - depguard # use gomodguard
-    - tagliatelle
-    # not useful
     - canonicalheader
+    - depguard
     - err113
-    - lll
-    - varnamelen
-    # deprecated
     - gochecknoglobals
-    - tenv
-
-linters-settings:
-  nlreturn:
-    block-size: 3
-
-issues:
-  exclude:
-    - "fmt.Errorf can be replaced with errors.New"
-    - "var-naming: don't use underscores in Go names;"
-    - "ST1003: should not use underscores in Go names;"
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - funlen
-        - gocritic
+    - lll
+    - tagliatelle
+    - varnamelen
+  settings:
+    nlreturn:
+      block-size: 3
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - funlen
+          - gocritic
+        path: _test\.go
+      - path: (.+)\.go$
+        text: fmt.Errorf can be replaced with errors.New
+      - path: (.+)\.go$
+        text: 'var-naming: don''t use underscores in Go names;'
+      - path: (.+)\.go$
+        text: 'ST1003: should not use underscores in Go names;'
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - gofumpt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
