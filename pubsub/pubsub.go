@@ -1,8 +1,15 @@
 package pubsub
 
+import (
+	"encoding/json"
+	"fmt"
+	"time"
+)
+
 const (
 	Topic_CreateHealthFeedbackJob = "create-health-feedback-job"
 	Topic_GenerateHealthFeedback  = "generate-health-feedback"
+	Topic_MailRequests            = "mail-requests"
 )
 
 type HealthFeedbackEventType string
@@ -39,3 +46,96 @@ type GenerateHealthFeedbackMessage struct {
 }
 
 func (GenerateHealthFeedbackMessage) message() {}
+
+// MailType represents the type of email being sent.
+type MailType string
+
+const (
+	MailTypeOnDemand  MailType = "on-demand" // Email is sent on demand, e.g., user request
+	MailTypeScheduled MailType = "scheduled" // Email is scheduled to be sent at a specific time by batch job
+)
+
+// MailRequest represents a request to send an email.
+type MailRequest struct {
+	MailContent
+
+	MailSettings
+
+	ID       string   `json:"id"`        // Unique identifier for the email request, e.g., UUID
+	MailType MailType `json:"mail_type"` // Type of the email, e.g., on-demand or scheduled
+
+	To Recipient `json:"to"`
+
+	// SendAt is the time when the email should be sent.
+	// This field is required for batch requests to schedule the email sending.
+	// Assumed to be RFC 3339 string format in the JSON message.
+	SendAt *JSONTime `json:"send_at,omitempty"`
+
+	// MessageID is the unique identifier for the Pub/Sub message.
+	MessageID string `json:"message_id,omitempty"` // Optional, used for Pub/Sub message tracking
+
+	// BatchID is the identifier for the batch of emails, if this email is part of a batch.
+	BatchID string `json:"batch_id,omitempty"` // Optional, used for batch sending
+}
+
+func (MailRequest) message() {}
+
+type MailContent struct {
+	// MailID is an identifier for the email content.
+	// This ID should be unique for each recipient.
+	MailID string `json:"mail_id"`
+
+	Subject      string                 `json:"subject"`
+	Body         string                 `json:"body,omitempty"`
+	HTMLBody     string                 `json:"html_body,omitempty"`
+	TemplateID   string                 `json:"template_id,omitempty"`
+	TemplateData map[string]interface{} `json:"template_data,omitempty"`
+	Attachments  []Attachment           `json:"attachments,omitempty"`
+}
+
+type MailSettings struct {
+	FromEmail    string `json:"from_email,omitempty"`     // Optional sender email address to override the default sender
+	FromName     string `json:"from_name,omitempty"`      // Optional sender name to override the default sender name
+	ReplyToEmail string `json:"reply_to_email,omitempty"` // Optional reply-to email address to override the default reply-to address
+	ReplyToName  string `json:"reply_to_name,omitempty"`  // Optional reply-to email address to override the default reply-to address
+}
+
+type Recipient struct {
+	// UserID is the unique identifier for the recipient in the application.
+	UserID string `json:"user_id"`
+
+	// Email is the email address of the user at this request.
+	Email string `json:"email"`
+
+	// DisplayName is the name of the user at this request.
+	// This field might be embedded in the email template.
+	DisplayName string `json:"display_name,omitempty"` // Optional name of the recipient
+}
+
+// Attachment represents an email attachment.
+type Attachment struct {
+	Filename string `json:"filename"`
+	Content  []byte `json:"content"`
+	Type     string `json:"type"`
+}
+
+type JSONTime struct {
+	time.Time
+}
+
+func (t *JSONTime) UnmarshalJSON(b []byte) error {
+	// Try to unmarshal as time.Time at first
+	if err := json.Unmarshal(b, &t.Time); err == nil {
+		return nil
+	}
+
+	// Try to unmarshal as an int64 timestamp
+	var timestamp int64
+	if err := json.Unmarshal(b, &timestamp); err != nil {
+		return fmt.Errorf("failed to unmarshal JSONTime: %w", err)
+	}
+
+	t.Time = time.Unix(timestamp, 0)
+
+	return nil
+}
