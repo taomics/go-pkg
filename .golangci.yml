@@ -9,6 +9,7 @@ linters:
     - lll
     - tagliatelle
     - varnamelen
+    - noinlineerr
   settings:
     nlreturn:
       block-size: 3
