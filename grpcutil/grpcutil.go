@@ -6,12 +6,12 @@ import (
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/status"
 )
 
 type grpcError struct {
-	s      *status.Status
-	logMsg string
+	code    codes.Code
+	grpcMsg string
+	logMsg  string
 }
 
 func (e *grpcError) Error() string {
@@ -19,11 +19,11 @@ func (e *grpcError) Error() string {
 }
 
 func Error(c codes.Code, grpcMsg, logMsg string) error {
-	return &grpcError{s: status.New(c, grpcMsg), logMsg: logMsg}
+	return &grpcError{code: c, grpcMsg: grpcMsg, logMsg: logMsg}
 }
 
 func Errorf(c codes.Code, grpcMsg, logFormat string, v ...any) error {
-	return &grpcError{s: status.New(c, grpcMsg), logMsg: fmt.Sprintf(logFormat, v...)}
+	return &grpcError{code: c, grpcMsg: grpcMsg, logMsg: fmt.Sprintf(logFormat, v...)}
 }
 
 func extractGRPCAuthHeader(ctx context.Context) (string, error) {
