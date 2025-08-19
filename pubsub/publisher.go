@@ -5,13 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"cloud.google.com/go/pubsub"
+	pubsub "cloud.google.com/go/pubsub/v2"
 	"github.com/taomics/go-pkg/log"
 )
 
 // Publisher defines the interface for publishing messages to topics.
 type Publisher interface {
-	Publish(ctx context.Context, topic string, message Message, opts ...PublishOption) error
+	Publish(ctx context.Context, message Message, opts ...PublishOption) error
+	Close() error
 }
 
 type puslishOption struct {
@@ -33,30 +34,36 @@ func WithOrderingKey(order string) PublishOption {
 	}
 }
 
-// client wraps pubsub.Client to implement Client interface.
+// client wraps pubsub.Publisher to implement Publisher interface.
 type client struct {
-	c *pubsub.Client
+	c         *pubsub.Client
+	publisher *pubsub.Publisher
+	topicID   string
 }
 
+// NewPublisher creates a new Publisher instance for the specified project and topic.
+// A caller should Close() the returned Publisher when it is no longer needed to release resources.
+//
 //nolint:ireturn
-func NewPublisher(ctx context.Context, projectID string) (Publisher, error) {
+func NewPublisher(ctx context.Context, projectID string, topicID string) (Publisher, error) {
 	c, err := pubsub.NewClient(ctx, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create pubsub client: %w", err)
 	}
 
-	return &client{c: c}, nil
+	return &client{
+		c:         c,
+		publisher: c.Publisher(topicID),
+		topicID:   topicID,
+	}, nil
 }
 
 // Publish publishes a message to the specified topic.
-func (p *client) Publish(ctx context.Context, topic string, message Message, opts ...PublishOption) error {
+func (c *client) Publish(ctx context.Context, message Message, opts ...PublishOption) error {
 	var popts puslishOption
 	for _, f := range opts {
 		f(&popts)
 	}
-
-	t := p.c.Topic(topic)
-	defer t.Stop()
 
 	data, err := json.Marshal(message)
 	if err != nil {
@@ -64,7 +71,7 @@ func (p *client) Publish(ctx context.Context, topic string, message Message, opt
 	}
 
 	//nolint:exhaustruct
-	result := t.Publish(ctx, &pubsub.Message{
+	result := c.publisher.Publish(ctx, &pubsub.Message{
 		Data:        data,
 		Attributes:  popts.attr,
 		OrderingKey: popts.order,
@@ -74,7 +81,18 @@ func (p *client) Publish(ctx context.Context, topic string, message Message, opt
 		return fmt.Errorf("failed to publish message: %w", err)
 	}
 
-	log.Printf("published message to topic %s", topic)
+	log.Printf("published message to topic %s", c.topicID)
+
+	return nil
+}
+
+// Close stops the publisher and closes the pubsub client.
+func (c *client) Close() error {
+	c.publisher.Stop()
+
+	if err := c.c.Close(); err != nil {
+		return fmt.Errorf("failed to close pubsub.Client: %w", err)
+	}
 
 	return nil
 }
