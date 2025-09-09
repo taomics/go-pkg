@@ -1,9 +1,11 @@
-package pubsub
+package pubsub_test
 
 import (
 	"encoding/json"
 	"testing"
 	"time"
+
+	"github.com/taomics/go-pkg/pubsub"
 )
 
 func TestJSONTime_UnmarshalJSON(t *testing.T) {
@@ -72,11 +74,10 @@ func TestJSONTime_UnmarshalJSON(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt // capture range variable (for compatibility with legacy Go versions)
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			var jt JSONTime
+			var jt pubsub.JSONTime
 
 			err := json.Unmarshal([]byte(tt.jsonData), &jt)
 			if tt.expectError {
@@ -105,8 +106,8 @@ func TestJSONTime_UnmarshalJSON_InStruct(t *testing.T) {
 
 	// Test unmarshaling JSONTime within a struct
 	type TestStruct struct {
-		Timestamp JSONTime `json:"timestamp,omitempty"`
-		Name      string   `json:"name"`
+		Timestamp pubsub.JSONTime `json:"timestamp,omitempty"`
+		Name      string          `json:"name"`
 	}
 
 	tests := []struct {
@@ -142,8 +143,6 @@ func TestJSONTime_UnmarshalJSON_InStruct(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt // capture range variable (for compatibility with legacy Go versions)
-
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
