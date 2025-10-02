@@ -41,6 +41,7 @@ func LogUnaryInterceptorConnect() connect.UnaryInterceptorFunc {
 
 				if gerr := new(grpcError); errors.As(err, &gerr) {
 					cerr := connect.NewError(connect.Code(gerr.code), errors.New(gerr.grpcMsg))
+
 					for _, detail := range gerr.details {
 						cdetail, err := connect.NewErrorDetail(detail)
 						if err == nil {
@@ -55,7 +56,7 @@ func LogUnaryInterceptorConnect() connect.UnaryInterceptorFunc {
 				}
 			}
 
-			return resp, err //nolint:wrapcheck
+			return resp, err
 		}
 	}
 }

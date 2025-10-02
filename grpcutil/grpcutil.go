@@ -2,6 +2,7 @@ package grpcutil
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"google.golang.org/grpc/codes"
@@ -29,7 +30,7 @@ func Errorf(c codes.Code, grpcMsg, logFormat string, v ...any) error {
 }
 
 func WithDetails(err error, details ...proto.Message) error {
-	if ge, ok := err.(*grpcError); ok {
+	if ge := new(grpcError); errors.As(err, &ge) {
 		ge.details = append(ge.details, details...)
 		return ge
 	}

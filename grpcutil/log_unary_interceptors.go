@@ -28,7 +28,7 @@ const (
 	hUserAgent     = "user-agent"
 )
 
-//nolint:cyclop,funlen
+//nolint:cyclop,gocognit,funlen /// FIXME: refactor this function
 func LogUnaryInterceptors(interceptors ...grpc.UnaryServerInterceptor) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, res interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) { //nolint:contextcheck,nonamedreturns
 		var (
@@ -80,30 +80,32 @@ func LogUnaryInterceptors(interceptors ...grpc.UnaryServerInterceptor) grpc.Unar
 		}()
 
 		resp, err = chain(ctx, res)
-		if err != nil {
-			e.Severity = log.Severity_ERROR
-			e.Message = err.Error()
-
-			if gerr := new(grpcError); errors.As(err, &gerr) {
-				sdetails := make([]protoadapt.MessageV1, len(gerr.details))
-				for i, d := range gerr.details {
-					sdetails[i] = protoadapt.MessageV1Of(d)
-				}
-
-				s := status.New(gerr.code, gerr.grpcMsg)
-				if s2, e := s.WithDetails(sdetails...); e == nil {
-					err = s2.Err()
-				} else {
-					err = s.Err()
-				}
-
-				e.Labels[keyGRPCStatus] = gerr.code.String()
-			} else {
-				e.Labels[keyGRPCStatus] = codes.Unknown.String()
-			}
+		if err == nil {
+			return resp, nil
 		}
 
-		return resp, err //nolint:wrapcheck
+		e.Severity = log.Severity_ERROR
+		e.Message = err.Error()
+
+		if gerr := new(grpcError); errors.As(err, &gerr) {
+			sdetails := make([]protoadapt.MessageV1, len(gerr.details))
+			for i, d := range gerr.details {
+				sdetails[i] = protoadapt.MessageV1Of(d)
+			}
+
+			s := status.New(gerr.code, gerr.grpcMsg)
+			if s2, e := s.WithDetails(sdetails...); e == nil {
+				err = s2.Err()
+			} else {
+				err = s.Err()
+			}
+
+			e.Labels[keyGRPCStatus] = gerr.code.String()
+		} else {
+			e.Labels[keyGRPCStatus] = codes.Unknown.String()
+		}
+
+		return nil, err //nolint:wrapcheck
 	}
 }
 
