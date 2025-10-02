@@ -37,7 +37,8 @@ func ErrorUnaryInterceptor(interceptors ...grpc.UnaryServerInterceptor) grpc.Una
 			return resp, nil
 		}
 
-		if gerr := new(grpcError); errors.As(err, &gerr) {
+		var gerr *grpcError
+		if errors.As(err, &gerr) {
 			slog.Error(gerr.Error())
 
 			sdetails := make([]protoadapt.MessageV1, len(gerr.details))

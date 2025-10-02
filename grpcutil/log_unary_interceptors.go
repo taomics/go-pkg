@@ -87,7 +87,8 @@ func LogUnaryInterceptors(interceptors ...grpc.UnaryServerInterceptor) grpc.Unar
 		e.Severity = log.Severity_ERROR
 		e.Message = err.Error()
 
-		if gerr := new(grpcError); errors.As(err, &gerr) {
+		var gerr *grpcError
+		if errors.As(err, &gerr) {
 			sdetails := make([]protoadapt.MessageV1, len(gerr.details))
 			for i, d := range gerr.details {
 				sdetails[i] = protoadapt.MessageV1Of(d)

@@ -16,16 +16,13 @@ import (
 func AuthUnaryInterceptorConnect(opts ...auth.Option) connect.UnaryInterceptorFunc {
 	return func(next connect.UnaryFunc) connect.UnaryFunc {
 		return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
-			email := "unknown"
 			ah := req.Header().Get(hAuthorization)
 
-			if !strings.HasPrefix(ah, "email ") {
+			if !strings.HasPrefix(ah, emailAuthPrefix) {
 				return nil, Error(codes.Unauthenticated, "no email", "auth_develop: no email")
 			}
 
-			email = ah[len("email "):]
-
-			return next(auth.SetEmail(ctx, email), req)
+			return next(auth.SetEmail(ctx, ah[len(emailAuthPrefix):]), req)
 		}
 	}
 }

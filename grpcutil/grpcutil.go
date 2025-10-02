@@ -30,9 +30,12 @@ func Errorf(c codes.Code, grpcMsg, logFormat string, v ...any) error {
 }
 
 func WithDetails(err error, details ...proto.Message) error {
-	if ge := new(grpcError); errors.As(err, &ge) {
-		ge.details = append(ge.details, details...)
-		return ge
+	var ge *grpcError
+	if errors.As(err, &ge) {
+		newErr := *ge
+		newErr.details = append(append([]proto.Message(nil), ge.details...), details...)
+
+		return &newErr
 	}
 
 	return &grpcError{code: codes.Unknown, details: details, grpcMsg: err.Error(), logMsg: err.Error()}

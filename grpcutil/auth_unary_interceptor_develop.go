@@ -22,11 +22,11 @@ func AuthUnaryInterceptor(_ ...auth.Option) grpc.UnaryServerInterceptor {
 			return nil, Error(codes.Unauthenticated, "invalid authorization header", "auth_develop: "+err.Error())
 		}
 
-		if !strings.HasPrefix(ah, "email ") {
+		if !strings.HasPrefix(ah, emailAuthPrefix) {
 			return nil, Error(codes.Unauthenticated, "no email", "auth_develop: no email")
 		}
 
-		email = ah[len("email "):]
+		email = ah[len(emailAuthPrefix):]
 
 		return handler(auth.SetEmail(ctx, email), req)
 	}

@@ -35,28 +35,32 @@ func LogUnaryInterceptorConnect() connect.UnaryInterceptorFunc {
 			}(&e)
 
 			resp, err = next(ctx, req)
-			if err != nil {
-				e.Severity = log.Severity_ERROR
-				e.Message = err.Error()
-
-				if gerr := new(grpcError); errors.As(err, &gerr) {
-					cerr := connect.NewError(connect.Code(gerr.code), errors.New(gerr.grpcMsg))
-
-					for _, detail := range gerr.details {
-						cdetail, err := connect.NewErrorDetail(detail)
-						if err == nil {
-							cerr.AddDetail(cdetail)
-						}
-					}
-
-					err = cerr
-					e.Labels[keyGRPCStatus] = gerr.code.String()
-				} else {
-					e.Labels[keyGRPCStatus] = connect.CodeUnknown.String()
-				}
+			if err == nil {
+				return resp, nil
 			}
 
-			return resp, err
+			e.Severity = log.Severity_ERROR
+			e.Message = err.Error()
+
+			var gerr *grpcError
+			if errors.As(err, &gerr) {
+				cerr := connect.NewError(connect.Code(gerr.code), errors.New(gerr.grpcMsg))
+
+				for _, detail := range gerr.details {
+					if cdetail, err := connect.NewErrorDetail(detail); err == nil {
+						cerr.AddDetail(cdetail)
+					} else {
+						log.Errorf("failed to add error detail: %v", err)
+					}
+				}
+
+				err = cerr
+				e.Labels[keyGRPCStatus] = gerr.code.String()
+			} else {
+				e.Labels[keyGRPCStatus] = connect.CodeUnknown.String()
+			}
+
+			return nil, err
 		}
 	}
 }
