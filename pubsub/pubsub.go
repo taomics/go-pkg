@@ -6,15 +6,16 @@ import (
 	"time"
 )
 
+//nolint:godoclint
 const (
-	// HealthFeedback topics
+	// HealthFeedback topics.
 	Topic_CreateHealthFeedbackJob = "create-health-feedback-job"
 	Topic_GenerateHealthFeedback  = "generate-health-feedback"
 
-	// Mail topics
+	// Mail topics.
 	Topic_MailRequests = "mail-requests"
 
-	// Weekly Report topics
+	// Weekly Report topics.
 	Topic_DailyFeedbackJob      = "daily-feedback-job"
 	Topic_WeeklyReportJob       = "weekly-report-job"
 	Topic_GenerateDailyFeedback = "generate-daily-feedback"

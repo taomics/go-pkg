@@ -27,7 +27,7 @@ type CreateWeeklyReportJobMessage struct {
 	Event     WeeklyReportEvent `json:"event"`
 	AccountID int64             `json:"account_id"`
 
-	// WeeklyReportID is require only when EventType is WeeklyReportEventType_FinalizeReportRequested.
+	// WeeklyReportID is required only when EventType is WeeklyReportEventType_FinalizeReportRequested.
 	WeeklyReportID int64 `json:"weeklyreport_id,omitempty"`
 }
 
