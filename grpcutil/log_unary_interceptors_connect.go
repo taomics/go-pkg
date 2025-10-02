@@ -44,17 +44,7 @@ func LogUnaryInterceptorConnect() connect.UnaryInterceptorFunc {
 
 			var gerr *grpcError
 			if errors.As(err, &gerr) {
-				cerr := connect.NewError(connect.Code(gerr.code), errors.New(gerr.grpcMsg))
-
-				for _, detail := range gerr.details {
-					if cdetail, err := connect.NewErrorDetail(detail); err == nil {
-						cerr.AddDetail(cdetail)
-					} else {
-						log.Errorf("failed to add error detail: %v", err)
-					}
-				}
-
-				err = cerr
+				err = gerr.ConnectError()
 				e.Labels[keyGRPCStatus] = gerr.code.String()
 			} else {
 				e.Labels[keyGRPCStatus] = connect.CodeUnknown.String()

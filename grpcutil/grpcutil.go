@@ -4,10 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 
+	"connectrpc.com/connect"
+	"github.com/taomics/go-pkg/log"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/protoadapt"
 )
 
 type grpcError struct {
@@ -17,8 +22,38 @@ type grpcError struct {
 	logMsg  string
 }
 
-func (e *grpcError) Error() string {
-	return e.logMsg
+func (gerr *grpcError) Error() string {
+	return gerr.logMsg
+}
+
+func (gerr *grpcError) GRPCStatusError() error {
+	sdetails := make([]protoadapt.MessageV1, len(gerr.details))
+	for i, d := range gerr.details {
+		sdetails[i] = protoadapt.MessageV1Of(d)
+	}
+
+	s := status.New(gerr.code, gerr.grpcMsg)
+	if s2, e := s.WithDetails(sdetails...); e == nil {
+		return s2.Err() //nolint:wrapcheck
+	} else { //nolint:revive
+		log.Errorf("failed to add error details: %v", e)
+	}
+
+	return s.Err() //nolint:wrapcheck
+}
+
+func (gerr *grpcError) ConnectError() *connect.Error {
+	cerr := connect.NewError(connect.Code(gerr.code), errors.New(gerr.grpcMsg))
+
+	for _, detail := range gerr.details {
+		if cdetail, err := connect.NewErrorDetail(detail); err == nil {
+			cerr.AddDetail(cdetail)
+		} else {
+			log.Errorf("failed to add error detail: %v", err)
+		}
+	}
+
+	return cerr
 }
 
 func Error(c codes.Code, grpcMsg, logMsg string, details ...proto.Message) error {
@@ -33,7 +68,7 @@ func WithDetails(err error, details ...proto.Message) error {
 	var ge *grpcError
 	if errors.As(err, &ge) {
 		newErr := *ge
-		newErr.details = append(append([]proto.Message(nil), ge.details...), details...)
+		newErr.details = append(slices.Clone(ge.details), details...)
 
 		return &newErr
 	}

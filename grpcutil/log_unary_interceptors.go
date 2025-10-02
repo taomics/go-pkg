@@ -12,7 +12,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/protoadapt"
 )
 
 const (
@@ -28,7 +27,7 @@ const (
 	hUserAgent     = "user-agent"
 )
 
-//nolint:cyclop,gocognit,funlen /// FIXME: refactor this function
+//nolint:cyclop,funlen /// FIXME: refactor this function
 func LogUnaryInterceptors(interceptors ...grpc.UnaryServerInterceptor) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, res interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) { //nolint:contextcheck,nonamedreturns
 		var (
@@ -89,24 +88,13 @@ func LogUnaryInterceptors(interceptors ...grpc.UnaryServerInterceptor) grpc.Unar
 
 		var gerr *grpcError
 		if errors.As(err, &gerr) {
-			sdetails := make([]protoadapt.MessageV1, len(gerr.details))
-			for i, d := range gerr.details {
-				sdetails[i] = protoadapt.MessageV1Of(d)
-			}
-
-			s := status.New(gerr.code, gerr.grpcMsg)
-			if s2, e := s.WithDetails(sdetails...); e == nil {
-				err = s2.Err()
-			} else {
-				err = s.Err()
-			}
-
+			err = gerr.GRPCStatusError()
 			e.Labels[keyGRPCStatus] = gerr.code.String()
 		} else {
 			e.Labels[keyGRPCStatus] = codes.Unknown.String()
 		}
 
-		return nil, err //nolint:wrapcheck
+		return nil, err
 	}
 }
 
