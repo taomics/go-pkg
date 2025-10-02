@@ -10,6 +10,7 @@ linters:
     - tagliatelle
     - varnamelen
     - noinlineerr
+    - wsl
   settings:
     nlreturn:
       block-size: 3

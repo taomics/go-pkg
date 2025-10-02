@@ -27,7 +27,7 @@ const (
 	hUserAgent     = "user-agent"
 )
 
-//nolint:cyclop,funlen
+//nolint:cyclop,funlen /// FIXME: refactor this function
 func LogUnaryInterceptors(interceptors ...grpc.UnaryServerInterceptor) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, res interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) { //nolint:contextcheck,nonamedreturns
 		var (
@@ -79,25 +79,28 @@ func LogUnaryInterceptors(interceptors ...grpc.UnaryServerInterceptor) grpc.Unar
 		}()
 
 		resp, err = chain(ctx, res)
-		if err != nil {
-			e.Severity = log.Severity_ERROR
-			e.Message = err.Error()
-
-			if gerr := new(grpcError); errors.As(err, &gerr) {
-				err = gerr.s.Err()
-				e.Labels[keyGRPCStatus] = gerr.s.Code().String()
-			} else {
-				e.Labels[keyGRPCStatus] = codes.Unknown.String()
-			}
+		if err == nil {
+			return resp, nil
 		}
 
-		return resp, err //nolint:wrapcheck
+		e.Severity = log.Severity_ERROR
+		e.Message = err.Error()
+
+		var gerr *grpcError
+		if errors.As(err, &gerr) {
+			err = gerr.GRPCStatusError()
+			e.Labels[keyGRPCStatus] = gerr.code.String()
+		} else {
+			e.Labels[keyGRPCStatus] = codes.Unknown.String()
+		}
+
+		return nil, err
 	}
 }
 
 func buildChain(info *grpc.UnaryServerInfo, handle grpc.UnaryHandler, intr grpc.UnaryServerInterceptor, lastCtx *context.Context) grpc.UnaryHandler {
 	return func(ctx context.Context, req interface{}) (interface{}, error) {
-		*lastCtx = ctx
+		*lastCtx = ctx //nolint:fatcontext
 		return intr(ctx, req, info, handle)
 	}
 }

@@ -32,15 +32,16 @@ func ErrorUnaryInterceptor(interceptors ...grpc.UnaryServerInterceptor) grpc.Una
 		}()
 
 		resp, err = chain(ctx, res)
-		if err != nil {
-			if gerr := new(grpcError); errors.As(err, &gerr) {
-				slog.Error(gerr.Error())
-				err = gerr.s.Err()
-			}
-
-			return nil, err //nolint:wrapcheck
+		if err == nil {
+			return resp, nil
 		}
 
-		return resp, nil
+		var gerr *grpcError
+		if errors.As(err, &gerr) {
+			slog.Error(gerr.Error())
+			return nil, gerr.GRPCStatusError()
+		}
+
+		return nil, err
 	}
 }
