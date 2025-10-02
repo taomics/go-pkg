@@ -43,9 +43,14 @@ type client struct {
 
 // NewPublisher creates a new Publisher instance for the specified project and topic.
 // A caller should Close() the returned Publisher when it is no longer needed to release resources.
+// if projectID is empty, it will be automatically detected.
 //
 //nolint:ireturn
 func NewPublisher(ctx context.Context, projectID string, topicID string) (Publisher, error) {
+	if projectID == "" {
+		projectID = pubsub.DetectProjectID // Automatically detect the project ID of this application.
+	}
+
 	c, err := pubsub.NewClient(ctx, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create pubsub client: %w", err)
