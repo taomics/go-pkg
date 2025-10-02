@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/protoadapt"
 )
 
 func ErrorUnaryInterceptor(interceptors ...grpc.UnaryServerInterceptor) grpc.UnaryServerInterceptor {
@@ -32,15 +33,26 @@ func ErrorUnaryInterceptor(interceptors ...grpc.UnaryServerInterceptor) grpc.Una
 		}()
 
 		resp, err = chain(ctx, res)
-		if err != nil {
-			if gerr := new(grpcError); errors.As(err, &gerr) {
-				slog.Error(gerr.Error())
-				err = status.Error(gerr.code, gerr.grpcMsg)
-			}
-
-			return nil, err //nolint:wrapcheck
+		if err == nil {
+			return resp, nil
 		}
 
-		return resp, nil
+		if gerr := new(grpcError); errors.As(err, &gerr) {
+			slog.Error(gerr.Error())
+
+			sdetails := make([]protoadapt.MessageV1, len(gerr.details))
+			for i, d := range gerr.details {
+				sdetails[i] = protoadapt.MessageV1Of(d)
+			}
+
+			s := status.New(gerr.code, gerr.grpcMsg)
+			if s2, e := s.WithDetails(sdetails...); e == nil {
+				err = s2.Err()
+			} else {
+				err = s.Err()
+			}
+		}
+
+		return nil, err //nolint:wrapcheck
 	}
 }
