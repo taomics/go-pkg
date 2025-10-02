@@ -6,24 +6,35 @@ import (
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 )
 
 type grpcError struct {
-	s      *status.Status
-	logMsg string
+	code    codes.Code
+	details []proto.Message
+	grpcMsg string
+	logMsg  string
 }
 
 func (e *grpcError) Error() string {
 	return e.logMsg
 }
 
-func Error(c codes.Code, grpcMsg, logMsg string) error {
-	return &grpcError{s: status.New(c, grpcMsg), logMsg: logMsg}
+func Error(c codes.Code, grpcMsg, logMsg string, details ...proto.Message) error {
+	return &grpcError{code: c, details: details, grpcMsg: grpcMsg, logMsg: logMsg}
 }
 
 func Errorf(c codes.Code, grpcMsg, logFormat string, v ...any) error {
-	return &grpcError{s: status.New(c, grpcMsg), logMsg: fmt.Sprintf(logFormat, v...)}
+	return &grpcError{code: c, details: nil, grpcMsg: grpcMsg, logMsg: fmt.Sprintf(logFormat, v...)}
+}
+
+func WithDetails(err error, details ...proto.Message) error {
+	if ge, ok := err.(*grpcError); ok {
+		ge.details = append(ge.details, details...)
+		return ge
+	}
+
+	return &grpcError{code: codes.Unknown, details: details, grpcMsg: err.Error(), logMsg: err.Error()}
 }
 
 func extractGRPCAuthHeader(ctx context.Context) (string, error) {
