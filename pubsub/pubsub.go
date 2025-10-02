@@ -7,9 +7,18 @@ import (
 )
 
 const (
+	// HealthFeedback topics
 	Topic_CreateHealthFeedbackJob = "create-health-feedback-job"
 	Topic_GenerateHealthFeedback  = "generate-health-feedback"
-	Topic_MailRequests            = "mail-requests"
+
+	// Mail topics
+	Topic_MailRequests = "mail-requests"
+
+	// Weekly Report topics
+	Topic_DailyFeedbackJob      = "daily-feedback-job"
+	Topic_WeeklyReportJob       = "weekly-report-job"
+	Topic_GenerateDailyFeedback = "generate-daily-feedback"
+	Topic_GenerateWeeklyReport  = "generate-weekly-report"
 )
 
 type HealthFeedbackEventType string
