@@ -51,7 +51,7 @@ func NewSubscriptionHandler(handler MessageHandler) http.HandlerFunc {
 
 		var msg PubSubMessage
 		if err := json.Unmarshal(body, &msg); err != nil {
-			log.Errorf("failed to decode message: body=%s: %v", body, err)
+			log.Errorf("failed to decode message: %v", err)
 			return // return 200 OK, no need to retry
 		}
 
@@ -67,6 +67,10 @@ func NewSubscriptionHandler(handler MessageHandler) http.HandlerFunc {
 				w.WriteHeader(http.StatusInternalServerError)
 				return // return 500 Internal Server, need to retry
 			}
+		}
+
+		if _, err := w.Write([]byte("OK")); err != nil {
+			log.Errorf("write response: %v", err)
 		}
 	}
 }

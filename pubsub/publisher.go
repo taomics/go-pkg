@@ -12,6 +12,7 @@ import (
 // Publisher defines the interface for publishing messages to topics.
 type Publisher interface {
 	Publish(ctx context.Context, message Message, opts ...PublishOption) error
+	Topic() string
 	Close() error
 }
 
@@ -89,6 +90,11 @@ func (c *client) Publish(ctx context.Context, message Message, opts ...PublishOp
 	log.Printf("published message to topic %s", c.topicID)
 
 	return nil
+}
+
+// Topic returns the topic ID the publisher is publishing to.
+func (c *client) Topic() string {
+	return c.topicID
 }
 
 // Close stops the publisher and closes the pubsub client.
