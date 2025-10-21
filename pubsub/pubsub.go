@@ -126,7 +126,17 @@ type Recipient struct {
 type Attachment struct {
 	Filename string `json:"filename"`
 	Content  []byte `json:"content"`
-	Type     string `json:"type"`
+
+	Type string `json:"type,omitempty"`
+
+	// Disposition indicates how the attachment should be presented, e.g., "inline" or as an "attachment".
+	// It will be set as the `Content-Disposition` header in the email.
+	// See: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Disposition
+	Disposition string `json:"disposition,omitempty"`
+
+	// ContentID is used when the disposition is set to inline and the attachment is an image,
+	// allowing the file to be displayed within the body of the email.
+	ContentID string `json:"content_id,omitempty"`
 }
 
 type JSONTime struct {
