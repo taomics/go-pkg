@@ -100,7 +100,7 @@ type MailContent struct {
 	HTMLBody     string                 `json:"html_body,omitempty"`
 	TemplateID   string                 `json:"template_id,omitempty"`
 	TemplateData map[string]interface{} `json:"template_data,omitempty"`
-	Attachments  []Attachment           `json:"attachments,omitempty"`
+	Attachments  []*Attachment          `json:"attachments,omitempty"`
 }
 
 type MailSettings struct {
@@ -124,9 +124,25 @@ type Recipient struct {
 
 // Attachment represents an email attachment.
 type Attachment struct {
+	// Filename is the name of the attachment file as it will appear in the email. (Required)
 	Filename string `json:"filename"`
-	Content  []byte `json:"content"`
-	Type     string `json:"type"`
+
+	// Content is the base64-encoded content of the attachment. (Required)
+	Content string `json:"content"`
+
+	// Type is the MIME type of the attachment, e.g., "application/pdf" or "image/png".
+	// If not provided, it will be inferred from the filename extension.
+	Type string `json:"type,omitempty"`
+
+	// Disposition indicates how the attachment should be presented, e.g., "inline" or as an "attachment".
+	// It will be set as the `Content-Disposition` header in the email.
+	// See: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Disposition
+	Disposition string `json:"disposition,omitempty"`
+
+	// ContentID is used when the disposition is set to inline and the attachment is an image,
+	// allowing the file to be displayed within the body of the email with `cid:` URI scheme.
+	// If not provided, it will be generated automatically based on the filename.
+	ContentID string `json:"content_id,omitempty"`
 }
 
 type JSONTime struct {
