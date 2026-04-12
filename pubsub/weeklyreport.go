@@ -25,8 +25,9 @@ const (
 
 type CreateWeeklyReportJobMessage struct {
 	Event WeeklyReportEvent `json:"event"`
-	// Date is required only when EventType is ThisWeekReportNotFound
-	Date string `json:"date"`
+	// Date is required only when EventType is WeeklyReportEventType_ThisWeekReportNotFound.
+	// The format should be "YYYY-MM-DD".
+	Date string `json:"date,omitempty"` 
 
 	// AccountID is required only when EventType is SundayJournalWritten.
 	AccountID int64 `json:"account_id"`
