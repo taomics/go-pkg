@@ -29,8 +29,8 @@ type CreateWeeklyReportJobMessage struct {
 	// The format should be "YYYY-MM-DD".
 	Date string `json:"date,omitempty"` 
 
-	// AccountID is required only when EventType is SundayJournalWritten.
-	AccountID int64 `json:"account_id"`
+	// AccountID is required only when EventType is WeeklyReportEventType_SundayJournalWritten.
+	AccountID int64 `json:"account_id,omitempty"` 
 
 	// WeeklyReportID is required only when EventType is FinalizeReportRequested.
 	WeeklyReportID int64 `json:"weeklyreport_id,omitempty"`
