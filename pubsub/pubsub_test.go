@@ -106,7 +106,7 @@ func TestJSONTime_UnmarshalJSON_InStruct(t *testing.T) {
 
 	// Test unmarshaling JSONTime within a struct
 	type TestStruct struct {
-		Timestamp pubsub.JSONTime `json:"timestamp,omitempty"`
+		Timestamp pubsub.JSONTime `json:"timestamp"`
 		Name      string          `json:"name"`
 	}
 

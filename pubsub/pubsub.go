@@ -95,12 +95,12 @@ type MailContent struct {
 	// This ID should be unique for each recipient.
 	MailID string `json:"mail_id"`
 
-	Subject      string                 `json:"subject"`
-	Body         string                 `json:"body,omitempty"`
-	HTMLBody     string                 `json:"html_body,omitempty"`
-	TemplateID   string                 `json:"template_id,omitempty"`
-	TemplateData map[string]interface{} `json:"template_data,omitempty"`
-	Attachments  []*Attachment          `json:"attachments,omitempty"`
+	Subject      string         `json:"subject"`
+	Body         string         `json:"body,omitempty"`
+	HTMLBody     string         `json:"html_body,omitempty"`
+	TemplateID   string         `json:"template_id,omitempty"`
+	TemplateData map[string]any `json:"template_data,omitempty"`
+	Attachments  []*Attachment  `json:"attachments,omitempty"`
 }
 
 type MailSettings struct {
