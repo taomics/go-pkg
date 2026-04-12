@@ -24,10 +24,14 @@ const (
 )
 
 type CreateWeeklyReportJobMessage struct {
-	Event     WeeklyReportEvent `json:"event"`
-	AccountID int64             `json:"account_id"`
+	Event WeeklyReportEvent `json:"event"`
+	// Date is required only when EventType is ThisWeekReportNotFound
+	Date string `json:"date"`
 
-	// WeeklyReportID is required only when EventType is WeeklyReportEventType_FinalizeReportRequested.
+	// AccountID is required only when EventType is SundayJournalWritten.
+	AccountID int64 `json:"account_id"`
+
+	// WeeklyReportID is required only when EventType is FinalizeReportRequested.
 	WeeklyReportID int64 `json:"weeklyreport_id,omitempty"`
 }
 
