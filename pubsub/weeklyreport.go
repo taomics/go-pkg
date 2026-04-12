@@ -32,7 +32,7 @@ type CreateWeeklyReportJobMessage struct {
 	// AccountID is required only when EventType is WeeklyReportEventType_SundayJournalWritten.
 	AccountID int64 `json:"account_id,omitempty"` 
 
-	// WeeklyReportID is required only when EventType is FinalizeReportRequested.
+	// WeeklyReportID is required only when EventType is WeeklyReportEventType_FinalizeReportRequested.
 	WeeklyReportID int64 `json:"weeklyreport_id,omitempty"`
 }
 
