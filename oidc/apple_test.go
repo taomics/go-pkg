@@ -3,7 +3,7 @@ package oidc_test
 import (
 	"testing"
 
-	"github.com/dictav/go-oidc"
+	"github.com/taomics/go-pkg/oidc"
 )
 
 func TestJWKSet_apple(t *testing.T) {

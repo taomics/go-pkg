@@ -1,4 +1,4 @@
-module github.com/dictav/go-oidc
+module github.com/taomics/go-pkg/oidc
 
 go 1.23.0
 

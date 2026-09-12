@@ -4,8 +4,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/dictav/go-oidc"
 	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/taomics/go-pkg/oidc"
 )
 
 func TestJWKSet_adb2c(t *testing.T) {

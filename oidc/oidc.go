@@ -79,8 +79,9 @@ func cotainsAudience(list []string, aud string) bool {
 }
 
 type parseOption struct {
-	aud         string
-	adb2cTenant string
+	aud              string
+	adb2cTenant      string
+	configurationURI string
 }
 
 type ParseOption func(*parseOption)
@@ -94,6 +95,12 @@ func WithAudience(aud string) ParseOption {
 func WithAzureADB2CTenant(tenant string) ParseOption {
 	return func(o *parseOption) {
 		o.adb2cTenant = tenant
+	}
+}
+
+func WithConfigurationURI(uri string) ParseOption {
+	return func(o *parseOption) {
+		o.configurationURI = uri
 	}
 }
 
@@ -125,13 +132,18 @@ func Parse(ctx context.Context, token []byte, opts ...ParseOption) (jwt.Token, e
 	case iss == googleIssuer:
 		cfguri = googleConfigurationURI
 	case adb2cIssuerRegex.MatchString(iss):
+		var err error
 		cfguri, err = makeADB2CConfigurationURI(opt.adb2cTenant, t)
 		if err != nil {
 			return nil, fmt.Errorf("make adb2c configuration uri: %w", err)
 		}
 
 	default:
-		return nil, fmt.Errorf("not supported issuer: %s", iss)
+		if opt.configurationURI != "" {
+			cfguri = opt.configurationURI
+		} else {
+			return nil, fmt.Errorf("not supported issuer: %s", iss)
+		}
 	}
 
 	if time.Until(t.Expiration()) < expirationMargin {
