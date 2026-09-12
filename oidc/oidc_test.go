@@ -47,7 +47,7 @@ func newKey() (jwk.Key, error) {
 }
 
 // newJws returns a signed JWT token.
-func newJws(key jwk.Key, issuer, audience string, expiration time.Duration, claims map[string]interface{}) (string, error) {
+func newJws(key jwk.Key, issuer, audience string, expiration time.Duration, claims map[string]any) (string, error) {
 	token := jwt.New()
 	if err := token.Set(jwt.IssuerKey, issuer); err != nil {
 		return "", err
@@ -97,7 +97,7 @@ func TestParse(t *testing.T) {
 		switch r.URL.Path {
 		case "/.well-known/openid-configuration":
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			_ = json.NewEncoder(w).Encode(map[string]any{
 				"issuer":                                "https://issuer.example.com",
 				"jwks_uri":                              "http://" + r.Host + "/jwks.json",
 				"id_token_signing_alg_values_supported": []string{"RS256"},
@@ -125,7 +125,6 @@ func TestParse(t *testing.T) {
 			oidc.WithAudience("test-audience"),
 			oidc.WithConfigurationURI(ts.URL+"/.well-known/openid-configuration"),
 		)
-
 		if err != nil {
 			t.Fatalf("Parse() failed: %v", err)
 		}
@@ -151,7 +150,6 @@ func TestParse(t *testing.T) {
 			oidc.WithAudience("test-audience"),
 			oidc.WithConfigurationURI(ts.URL+"/.well-known/openid-configuration"),
 		)
-
 		if err == nil {
 			t.Error("expected signature verification error, got nil")
 		}
@@ -167,7 +165,6 @@ func TestParse(t *testing.T) {
 			oidc.WithAudience("test-audience"),
 			oidc.WithConfigurationURI(ts.URL+"/.well-known/openid-configuration"),
 		)
-
 		if err == nil {
 			t.Error("expected expiration error, got nil")
 		}
@@ -183,7 +180,6 @@ func TestParse(t *testing.T) {
 			oidc.WithAudience("test-audience"),
 			oidc.WithConfigurationURI(ts.URL+"/.well-known/openid-configuration"),
 		)
-
 		if err == nil {
 			t.Error("expected audience mismatch error, got nil")
 		}
@@ -198,7 +194,6 @@ func TestParse(t *testing.T) {
 		_, err = oidc.Parse(context.Background(), []byte(token),
 			oidc.WithAudience("test-audience"),
 		)
-
 		if err == nil {
 			t.Error("expected unsupported issuer error, got nil")
 		}
@@ -210,7 +205,7 @@ func TestParse(t *testing.T) {
 			switch r.URL.Path {
 			case "/.well-known/openid-configuration":
 				w.Header().Set("Content-Type", "application/json")
-				_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				_ = json.NewEncoder(w).Encode(map[string]any{
 					"issuer":                                "https://issuer.example.com",
 					"jwks_uri":                              "http://" + r.Host + "/jwks.json", // This will fail
 					"id_token_signing_alg_values_supported": []string{"RS256"},
@@ -236,7 +231,6 @@ func TestParse(t *testing.T) {
 			oidc.WithAudience("test-audience"),
 			oidc.WithConfigurationURI(errorTs.URL+"/.well-known/openid-configuration"),
 		)
-
 		if err == nil {
 			t.Error("expected jwks fetch error, got nil")
 		}
@@ -244,7 +238,8 @@ func TestParse(t *testing.T) {
 
 	t.Run("success with ADB2C issuer", func(t *testing.T) {
 		issuer := "https://mytenant.b2clogin.com/12345678-1234-1234-1234-123456789012/v2.0/"
-		token, err := newJws(key, issuer, "test-audience", time.Hour, map[string]interface{}{"tfp": "B2C_1_signin"})
+
+		token, err := newJws(key, issuer, "test-audience", time.Hour, map[string]any{"tfp": "B2C_1_signin"})
 		if err != nil {
 			t.Fatalf("failed to create JWS: %v", err)
 		}
@@ -255,7 +250,6 @@ func TestParse(t *testing.T) {
 			oidc.WithAudience("test-audience"),
 			oidc.WithAzureADB2CTenant("mytenant"),
 		)
-
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -285,8 +279,8 @@ func TestParse(t *testing.T) {
 
 		if err == nil {
 			t.Error("expected missing kid error, got nil")
-		} else if !strings.Contains(err.Error(), "missing kid") {
-			t.Errorf("expected error message to contain 'missing kid', got: %v", err)
+		} else if !strings.Contains(err.Error(), "no key ID") {
+			t.Errorf("expected error message to contain 'no key ID', got: %v", err)
 		}
 	})
 
@@ -313,8 +307,8 @@ func TestParse(t *testing.T) {
 
 		if err == nil {
 			t.Error("expected missing alg error, got nil")
-		} else if !strings.Contains(err.Error(), "missing alg") {
-			t.Errorf("expected error message to contain 'missing alg', got: %v", err)
+		} else if !strings.Contains(err.Error(), "could not verify message") {
+			t.Errorf("expected error message to contain 'could not verify message', got: %v", err)
 		}
 	})
 }
@@ -476,6 +470,7 @@ func TestEmail(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
+
 		if email != "google@example.com" {
 			t.Errorf("got %q, want %q", email, "google@example.com")
 		}
@@ -490,6 +485,7 @@ func TestEmail(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
+
 		if email != "apple@example.com" {
 			t.Errorf("got %q, want %q", email, "apple@example.com")
 		}
@@ -504,6 +500,7 @@ func TestEmail(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
+
 		if email != "adb2c-pref@example.com" {
 			t.Errorf("got %q, want %q", email, "adb2c-pref@example.com")
 		}
@@ -512,12 +509,13 @@ func TestEmail(t *testing.T) {
 	t.Run("ADB2C emails array success", func(t *testing.T) {
 		tok := jwt.New()
 		_ = tok.Set(jwt.IssuerKey, "https://tenant.b2clogin.com/tfp/")
-		_ = tok.Set("emails", []interface{}{"invalid-email", "adb2c-array@example.com"})
+		_ = tok.Set("emails", []any{"invalid-email", "adb2c-array@example.com"})
 
 		email, err := oidc.Email(tok)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
+
 		if email != "adb2c-array@example.com" {
 			t.Errorf("got %q, want %q", email, "adb2c-array@example.com")
 		}
@@ -591,7 +589,7 @@ func TestEmail(t *testing.T) {
 		tok := jwt.New()
 		_ = tok.Set(jwt.IssuerKey, "https://tenant.b2clogin.com/tfp/")
 		_ = tok.Set("preferred_username", 123)
-		_ = tok.Set("emails", []interface{}{"invalid-email"})
+		_ = tok.Set("emails", []any{"invalid-email"})
 
 		_, err := oidc.Email(tok)
 		if err == nil {
@@ -603,10 +601,12 @@ func TestEmail(t *testing.T) {
 func TestMakeADB2CConfigurationURI(t *testing.T) {
 	t.Run("common tenant without policy", func(t *testing.T) {
 		tok := jwt.New()
+
 		uri, err := oidc.Export_makeADB2CConfigurationURI("", tok)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
+
 		expected := "https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration"
 		if uri != expected {
 			t.Errorf("got %q, want %q", uri, expected)
@@ -616,6 +616,7 @@ func TestMakeADB2CConfigurationURI(t *testing.T) {
 	t.Run("common tenant with policy (error)", func(t *testing.T) {
 		tok := jwt.New()
 		_ = tok.Set("tfp", "B2C_1_signin")
+
 		_, err := oidc.Export_makeADB2CConfigurationURI("", tok)
 		if err == nil {
 			t.Error("expected error, got nil")
@@ -625,10 +626,12 @@ func TestMakeADB2CConfigurationURI(t *testing.T) {
 	t.Run("specific tenant with policy", func(t *testing.T) {
 		tok := jwt.New()
 		_ = tok.Set("tfp", "B2C_1_signin")
+
 		uri, err := oidc.Export_makeADB2CConfigurationURI("mytenant", tok)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
+
 		expected := "https://mytenant.b2clogin.com/mytenant.onmicrosoft.com/B2C_1_signin/v2.0/.well-known/openid-configuration"
 		if uri != expected {
 			t.Errorf("got %q, want %q", uri, expected)
@@ -637,10 +640,12 @@ func TestMakeADB2CConfigurationURI(t *testing.T) {
 
 	t.Run("specific tenant without policy", func(t *testing.T) {
 		tok := jwt.New()
+
 		uri, err := oidc.Export_makeADB2CConfigurationURI("mytenant", tok)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
+
 		expected := "https://mytenant.b2clogin.com/mytenant.onmicrosoft.com/v2.0/.well-known/openid-configuration"
 		if uri != expected {
 			t.Errorf("got %q, want %q", uri, expected)
@@ -650,6 +655,7 @@ func TestMakeADB2CConfigurationURI(t *testing.T) {
 	t.Run("invalid tfp type", func(t *testing.T) {
 		tok := jwt.New()
 		_ = tok.Set("tfp", 123)
+
 		_, err := oidc.Export_makeADB2CConfigurationURI("mytenant", tok)
 		if err == nil {
 			t.Error("expected error, got nil")

@@ -10,13 +10,13 @@ func TestProviderMetadata_Valid(t *testing.T) {
 	// A baseline valid metadata struct
 	validMetadata := func() *oidc.ProviderMetadata {
 		return &oidc.ProviderMetadata{
-			Issuer:                                "https://issuer.example.com",
-			JWKSURI:                               "https://issuer.example.com/jwks",
-			IDTokenSigningAlgValuesSupported:      []string{"RS256"},
-			SubjectTypesSupported:                 []string{"public"},
-			ResponseTypesSupported:                []string{"id_token"},
-			TokenEndpoint:                         "https://issuer.example.com/token",
-			AuthorizationEndpoint:                 "https://issuer.example.com/auth",
+			Issuer:                           "https://issuer.example.com",
+			JWKSURI:                          "https://issuer.example.com/jwks",
+			IDTokenSigningAlgValuesSupported: []string{"RS256"},
+			SubjectTypesSupported:            []string{"public"},
+			ResponseTypesSupported:           []string{"id_token"},
+			TokenEndpoint:                    "https://issuer.example.com/token",
+			AuthorizationEndpoint:            "https://issuer.example.com/auth",
 		}
 	}
 
@@ -84,6 +84,7 @@ func TestProviderMetadata_Valid(t *testing.T) {
 			if tc.expectErr && err == nil {
 				t.Error("expected error, but got nil")
 			}
+
 			if !tc.expectErr && err != nil {
 				t.Errorf("did not expect error, but got: %v", err)
 			}

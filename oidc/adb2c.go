@@ -1,6 +1,7 @@
 package oidc
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"regexp"
@@ -39,7 +40,7 @@ func adb2cEmail(t jwt.Token) (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("there is no valid email in token")
+	return "", errors.New("there is no valid email in token")
 }
 
 // makeADB2CConfigurationURI builds the URI for the OpenID Configuration document.
@@ -71,16 +72,17 @@ func adb2cEmail(t jwt.Token) (string, error) {
 //nolint:cyclop
 func makeADB2CConfigurationURI(tenant string, token jwt.Token) (string, error) {
 	var policy string
+
 	if v, err := jwt.Get[any](token, "tfp"); err == nil {
 		if s, ok := v.(string); ok {
 			policy = s
 		} else {
-			return "", fmt.Errorf("invalid tfp type")
+			return "", errors.New("invalid tfp type")
 		}
 	}
 
 	if tenant == "" && policy != "" {
-		return "", fmt.Errorf("not support specifying only policy")
+		return "", errors.New("not support specifying only policy")
 	}
 
 	if tenant == "" {
