@@ -13,9 +13,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v4/jwa"
+	"github.com/lestrrat-go/jwx/v4/jwk"
+	"github.com/lestrrat-go/jwx/v4/jwt"
 	"github.com/taomics/go-pkg/oidc"
 )
 
@@ -30,7 +30,7 @@ func newKey() (jwk.Key, error) {
 		return nil, err
 	}
 
-	key, err := jwk.FromRaw(priv)
+	key, err := jwk.Import[jwk.Key](priv)
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +39,7 @@ func newKey() (jwk.Key, error) {
 		return nil, err
 	}
 
-	if err := key.Set(jwk.AlgorithmKey, jwa.RS256); err != nil {
+	if err := key.Set(jwk.AlgorithmKey, jwa.RS256()); err != nil {
 		return nil, err
 	}
 
@@ -67,7 +67,7 @@ func newJws(key jwk.Key, issuer, audience string, expiration time.Duration, clai
 		}
 	}
 
-	signed, err := jwt.Sign(token, jwt.WithKey(jwa.RS256, key))
+	signed, err := jwt.Sign(token, jwt.WithKey(jwa.RS256(), key))
 	if err != nil {
 		return "", err
 	}
@@ -130,8 +130,9 @@ func TestParse(t *testing.T) {
 			t.Fatalf("Parse() failed: %v", err)
 		}
 
-		if parsed.Issuer() != "https://issuer.example.com" {
-			t.Errorf("issuer mismatch: got %q, want %q", parsed.Issuer(), "https://issuer.example.com")
+		iss, _ := parsed.Issuer()
+		if iss != "https://issuer.example.com" {
+			t.Errorf("issuer mismatch: got %q, want %q", iss, "https://issuer.example.com")
 		}
 	})
 
@@ -264,6 +265,58 @@ func TestParse(t *testing.T) {
 			t.Errorf("expected a network, url, or 404 error, but got: %v", err)
 		}
 	})
+
+	t.Run("missing kid in token header", func(t *testing.T) {
+		noKidKey, err := newKey()
+		if err != nil {
+			t.Fatalf("failed to create key: %v", err)
+		}
+		_ = noKidKey.Remove(jwk.KeyIDKey)
+
+		token, err := newJws(noKidKey, "https://issuer.example.com", "test-audience", time.Hour, nil)
+		if err != nil {
+			t.Fatalf("failed to create JWS: %v", err)
+		}
+
+		_, err = oidc.Parse(context.Background(), []byte(token),
+			oidc.WithAudience("test-audience"),
+			oidc.WithConfigurationURI(ts.URL+"/.well-known/openid-configuration"),
+		)
+
+		if err == nil {
+			t.Error("expected missing kid error, got nil")
+		} else if !strings.Contains(err.Error(), "missing kid") {
+			t.Errorf("expected error message to contain 'missing kid', got: %v", err)
+		}
+	})
+
+	t.Run("missing alg in token header", func(t *testing.T) {
+		// Header without "alg"
+		// {"typ":"JWT","kid":"test-kid"}
+		header := "eyJ0eXAiOiJKV1QiLCJraWQiOiJ0ZXN0LWtpZCJ9"
+
+		validToken, err := newJws(key, "https://issuer.example.com", "test-audience", time.Hour, nil)
+		if err != nil {
+			t.Fatalf("failed to create JWS: %v", err)
+		}
+		parts := strings.Split(validToken, ".")
+		if len(parts) != 3 {
+			t.Fatalf("unexpected token format")
+		}
+
+		invalidToken := header + "." + parts[1] + "." + parts[2]
+
+		_, err = oidc.Parse(context.Background(), []byte(invalidToken),
+			oidc.WithAudience("test-audience"),
+			oidc.WithConfigurationURI(ts.URL+"/.well-known/openid-configuration"),
+		)
+
+		if err == nil {
+			t.Error("expected missing alg error, got nil")
+		} else if !strings.Contains(err.Error(), "missing alg") {
+			t.Errorf("expected error message to contain 'missing alg', got: %v", err)
+		}
+	})
 }
 
 //nolint:cyclop,gocognit,paralleltest
@@ -277,7 +330,7 @@ func TestValidateAudience(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	audiences := token.Audience()
+	audiences, _ := token.Audience()
 
 	t.Log("audiences:", audiences)
 
@@ -380,18 +433,15 @@ func testJWKSet(t *testing.T, cfguri string) {
 		t.Fatal("empty JWK set")
 	}
 
-	it := set.Keys(ctx)
-
-	for it.Next(ctx) {
-		pair := it.Pair()
-
-		v, err := jwk.PublicKeyOf(pair.Value)
+	for idx, key := range set.All() {
+		v, err := jwk.PublicKeyOf(key)
 		if err != nil {
 			t.Errorf("failed to get public key: %v", err)
 			continue
 		}
 
-		t.Logf("%d: %+v", pair.Index, v.KeyID())
+		kid, _ := v.KeyID()
+		t.Logf("%d: %+v", idx, kid)
 	}
 }
 

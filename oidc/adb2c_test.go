@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v4/jwt"
 	"github.com/taomics/go-pkg/oidc"
 )
 

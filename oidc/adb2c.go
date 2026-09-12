@@ -2,11 +2,10 @@ package oidc
 
 import (
 	"fmt"
-	"log/slog"
 	"net/url"
 	"regexp"
 
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v4/jwt"
 )
 
 const (
@@ -21,32 +20,23 @@ const (
 var adb2cIssuerRegex = regexp.MustCompile(`^https://(login.microsoftonline.com|[a-zA-Z0-9-]+\.b2clogin\.com)/`)
 
 func adb2cEmail(t jwt.Token) (string, error) {
-	v, ok := t.Get(adb2cEmailKey)
-	if ok {
-		if s, ok := v.(string); ok {
-			return s, nil
+	if v, err := jwt.Get[string](t, adb2cEmailKey); err == nil {
+		if err := validateEmailValue(v); err == nil {
+			return v, nil
 		}
-
-		slog.Warn("adb2cEmail: unexpected `%s` value: %v", adb2cEmailKey, v)
 	}
 
-	v, ok = t.Get(adb2cEmailsKey)
-	if !ok {
-		return "", fmt.Errorf("there is no email in token")
+	v, err := jwt.Get[[]any](t, adb2cEmailsKey)
+	if err != nil {
+		return "", fmt.Errorf("there is no email in token: %w", err)
 	}
 
-	arr, ok := v.([]any)
-	if !ok {
-		return "", fmt.Errorf("unexpected `%s` value: %v", adb2cEmailsKey, v)
-	}
-
-	for _, vv := range arr {
-		err := validateEmailValue(vv)
-		if err == nil {
-			return vv.(string), nil //nolint:forcetypeassert
+	for _, vv := range v {
+		if err := validateEmailValue(vv); err == nil {
+			if s, ok := vv.(string); ok {
+				return s, nil
+			}
 		}
-
-		slog.Warn("adb2cEmail: invalid email: %s: %v", vv, err)
 	}
 
 	return "", fmt.Errorf("there is no valid email in token")
@@ -81,14 +71,12 @@ func adb2cEmail(t jwt.Token) (string, error) {
 //nolint:cyclop
 func makeADB2CConfigurationURI(tenant string, token jwt.Token) (string, error) {
 	var policy string
-
-	if v, ok := token.Get("tfp"); ok {
-		s, ok := v.(string)
-		if !ok {
-			return "", fmt.Errorf("invalid tfp value: %q", policy)
+	if v, err := jwt.Get[any](token, "tfp"); err == nil {
+		if s, ok := v.(string); ok {
+			policy = s
+		} else {
+			return "", fmt.Errorf("invalid tfp type")
 		}
-
-		policy = s
 	}
 
 	if tenant == "" && policy != "" {

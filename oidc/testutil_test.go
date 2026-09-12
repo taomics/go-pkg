@@ -1,6 +1,7 @@
 package oidc //nolint:testpackage
 
 import (
+	"context"
 	"log"
 )
 
@@ -21,5 +22,5 @@ func CheckCache(cfguri string) bool {
 		return false
 	}
 
-	return jwkCache.IsRegistered(cfg.JWKSURI)
+	return jwkCache.IsRegistered(context.Background(), cfg.JWKSURI)
 }

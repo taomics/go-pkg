@@ -10,10 +10,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/lestrrat-go/jwx/v2/jws"
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/jwx-go/jwkfetch/v4"
+	"github.com/lestrrat-go/httprc/v3"
+	"github.com/lestrrat-go/jwx/v4/jwa"
+	"github.com/lestrrat-go/jwx/v4/jwk"
+	"github.com/lestrrat-go/jwx/v4/jws"
+	"github.com/lestrrat-go/jwx/v4/jwt"
 )
 
 const (
@@ -21,7 +23,7 @@ const (
 )
 
 var (
-	jwkCache          *jwk.Cache
+	jwkCache          *jwkfetch.Cache
 	cacheProviderMeta map[string]*ProviderMetadata
 	validAudience     func(audiences []string) bool
 	muxAud            sync.RWMutex
@@ -29,7 +31,13 @@ var (
 )
 
 func init() {
-	jwkCache = jwk.NewCache(context.Background())
+	ctx := context.Background()
+	c, err := jwkfetch.NewCache(ctx, httprc.NewClient())
+	if err != nil {
+		slog.Error("failed to create jwk cache", "err", err)
+		return
+	}
+	jwkCache = c
 	cacheProviderMeta = make(map[string]*ProviderMetadata)
 }
 
@@ -117,14 +125,19 @@ func Parse(ctx context.Context, token []byte, opts ...ParseOption) (jwt.Token, e
 		return nil, fmt.Errorf("invalid token: %w", err)
 	}
 
-	if err := validateAudience(t.Audience(), opt.aud); err != nil {
+	aud, _ := t.Audience()
+	if err := validateAudience(aud, opt.aud); err != nil {
 		return nil, err
 	}
 
 	var (
 		cfguri string
-		iss    = t.Issuer()
 	)
+
+	iss, ok := t.Issuer()
+	if !ok {
+		return nil, fmt.Errorf("issuer not found in token")
+	}
 
 	switch {
 	case iss == appleIssuer:
@@ -146,8 +159,12 @@ func Parse(ctx context.Context, token []byte, opts ...ParseOption) (jwt.Token, e
 		}
 	}
 
-	if time.Until(t.Expiration()) < expirationMargin {
-		return nil, fmt.Errorf("token is too old: %s", t.Expiration())
+	exp, ok := t.Expiration()
+	if !ok {
+		return nil, fmt.Errorf("expiration not found in token")
+	}
+	if time.Until(exp) < expirationMargin {
+		return nil, fmt.Errorf("token is too old: %s", exp)
 	}
 
 	alg, kid, err := extractAlgAndKid(token)
@@ -183,13 +200,16 @@ func JWKSet(ctx context.Context, cfguri string) (jwk.Set, error) {
 		return nil, fmt.Errorf("fetch provider metadata: %w", err)
 	}
 
-	if !jwkCache.IsRegistered(cfg.JWKSURI) {
-		if err := jwkCache.Register(cfg.JWKSURI); err != nil {
-			return nil, fmt.Errorf("register jwks_uri: %w", err)
-		}
+	// Use a timeout context for registration to avoid infinite blocking when the JWKS endpoint is down.
+	regCtx, regCancel := context.WithTimeout(ctx, 5*time.Second)
+	defer regCancel()
+
+	// jwkfetch.Cache is thread-safe. Register is idempotent.
+	if err := jwkCache.Register(regCtx, cfg.JWKSURI); err != nil {
+		return nil, fmt.Errorf("register jwks_uri: %w", err)
 	}
 
-	set, err := jwkCache.Get(ctx, cfg.JWKSURI)
+	set, err := jwkCache.Lookup(ctx, cfg.JWKSURI)
 	if err != nil {
 		return nil, fmt.Errorf("get jwk set: %w", err)
 	}
@@ -198,7 +218,10 @@ func JWKSet(ctx context.Context, cfguri string) (jwk.Set, error) {
 }
 
 func Email(t jwt.Token) (string, error) {
-	iss := t.Issuer()
+	iss, ok := t.Issuer()
+	if !ok {
+		return "", fmt.Errorf("issuer not found in token")
+	}
 
 	switch {
 	case iss == appleIssuer:
@@ -213,16 +236,16 @@ func Email(t jwt.Token) (string, error) {
 }
 
 func email(t jwt.Token, key string) (string, error) {
-	v, ok := t.Get(key)
-	if !ok {
-		return "", fmt.Errorf("there is no email in token")
+	v, err := jwt.Get[string](t, key)
+	if err != nil {
+		return "", fmt.Errorf("there is no email in token: %w", err)
 	}
 
 	if err := validateEmailValue(v); err != nil {
 		return "", err
 	}
 
-	return v.(string), nil //nolint:forcetypeassert
+	return v, nil
 }
 
 func validateEmailValue(v any) error {
@@ -241,21 +264,27 @@ func validateEmailValue(v any) error {
 func extractAlgAndKid(token []byte) (jwa.SignatureAlgorithm, string, error) {
 	ts, err := jws.Parse(token)
 	if err != nil {
-		return "", "", fmt.Errorf("invalid signature: %w", err)
+		return jwa.NoSignature(), "", fmt.Errorf("invalid signature: %w", err)
 	}
 
 	sigs := ts.Signatures()
 	csigs := len(sigs)
 
 	if csigs != 1 {
-		return "", "", fmt.Errorf("invalid signatures count: %d", csigs)
+		return jwa.NoSignature(), "", fmt.Errorf("invalid signatures count: %d", csigs)
 	}
 
 	// alg value is validated in jws.Verify() to ensure it is registered.
 	// Note: jws.Verify() explicitly disallows the use of 'none':
 	// > failed to create verifier for algorithm "none": unsupported signature algorithm "none"
-	alg := sigs[0].ProtectedHeaders().Algorithm()
-	kid := sigs[0].ProtectedHeaders().KeyID()
+	alg, ok := sigs[0].ProtectedHeaders().Algorithm()
+	if !ok {
+		return jwa.NoSignature(), "", fmt.Errorf("missing alg in protected headers")
+	}
+	kid, ok := sigs[0].ProtectedHeaders().KeyID()
+	if !ok {
+		return jwa.NoSignature(), "", fmt.Errorf("missing kid in protected headers")
+	}
 
 	return alg, kid, nil
 }
