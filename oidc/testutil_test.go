@@ -7,9 +7,14 @@ import (
 
 var (
 	Export_validateAudience          = validateAudience
-	Export_appleCoinfigurationURI    = appleConfigurationURI
-	Export_googleCoinfigurationURI   = googleConfigurationURI
+	Export_appleConfigurationURI     = appleConfigurationURI
+	Export_googleConfigurationURI    = googleConfigurationURI
 	Export_makeADB2CConfigurationURI = makeADB2CConfigurationURI
+
+	// Deprecated: Use Export_appleConfigurationURI instead.
+	Export_appleCoinfigurationURI = appleConfigurationURI
+	// Deprecated: Use Export_googleConfigurationURI instead.
+	Export_googleCoinfigurationURI = googleConfigurationURI
 )
 
 func CheckCache(cfguri string) bool {

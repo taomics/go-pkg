@@ -1,3 +1,5 @@
+//go:build integration
+
 package oidc_test
 
 import (
@@ -8,7 +10,7 @@ import (
 
 func TestJWKSet_apple(t *testing.T) {
 	t.Parallel()
-	testJWKSet(t, oidc.Export_appleCoinfigurationURI)
+	testJWKSet(t, oidc.Export_appleConfigurationURI)
 }
 
 func TestParse_Apple(t *testing.T) {

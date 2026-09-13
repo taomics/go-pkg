@@ -1,3 +1,5 @@
+//go:build integration
+
 package oidc_test
 
 import (
@@ -8,7 +10,7 @@ import (
 
 func TestJWKSet_Google(t *testing.T) {
 	t.Parallel()
-	testJWKSet(t, oidc.Export_googleCoinfigurationURI)
+	testJWKSet(t, oidc.Export_googleConfigurationURI)
 }
 
 func TestParse_Google(t *testing.T) {

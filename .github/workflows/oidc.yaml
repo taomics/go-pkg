@@ -31,7 +31,7 @@ jobs:
 
     - name: Run tests
       working-directory: ./oidc
-      run: go test -v ./...
+      run: go test -v -tags=integration ./...
 
     - name: Run govulncheck
       uses: golang/govulncheck-action@v1

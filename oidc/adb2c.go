@@ -28,16 +28,27 @@ func adb2cEmail(t jwt.Token) (string, error) {
 		}
 	}
 
-	v, err := jwt.Get[[]any](t, adb2cEmailsKey)
+	raw, err := jwt.Get[any](t, adb2cEmailsKey)
 	if err != nil {
 		return "", fmt.Errorf("there is no email in token: %w", err)
 	}
 
-	for _, vv := range v {
-		if err := validateEmailValue(vv); err == nil {
-			if s, ok := vv.(string); ok {
-				return s, nil
+	var emails []string
+
+	switch val := raw.(type) {
+	case []string:
+		emails = val
+	case []any:
+		for _, item := range val {
+			if s, ok := item.(string); ok {
+				emails = append(emails, s)
 			}
+		}
+	}
+
+	for _, email := range emails {
+		if err := validateEmailValue(email); err == nil {
+			return email, nil
 		}
 	}
 
@@ -90,7 +101,8 @@ func makeADB2CConfigurationURI(tenant string, token jwt.Token) (string, error) {
 		tenant = "common"
 	}
 
-	u, _ := url.Parse("https://")
+	u := new(url.URL)
+	u.Scheme = "https"
 
 	switch tenant {
 	case "common", "organizations", "consumers":

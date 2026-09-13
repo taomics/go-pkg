@@ -24,7 +24,7 @@ type ProviderMetadata struct {
 	// REQUIRED. URL of the OP's OAuth 2.0 Authorization Endpoint [OpenID.Core]. This URL MUST use the https scheme and MAY contain port, path, and query parameter components.
 	AuthorizationEndpoint string `json:"authorization_endpoint"`
 
-	// URL of the OP's OAuth 2.0 Token Endpoint [OpenID.Core]. This is REQUIRED unless only the Implicit Flow is used. This URL MUST use the https scheme and MAY contain port, path, and query parameter components.
+	// REQUIRED. URL of the OP's OAuth 2.0 Token Endpoint [OpenID.Core]. This URL MUST use the https scheme and MAY contain port, path, and query parameter components.
 	TokenEndpoint string `json:"token_endpoint"`
 
 	// RECOMMENDED. URL of the OP's UserInfo Endpoint [OpenID.Core]. This URL MUST use the https scheme and MAY contain port, path, and query parameter components.
@@ -161,7 +161,7 @@ func (c ProviderMetadata) Valid() error {
 
 	// REQUIRED. JSON array containing a list of the JWS signing algorithms (alg values) supported by the OP for the ID Token to encode the Claims in a JWT [JWT]. The algorithm RS256 MUST be included. The value none MAY be supported but MUST NOT be used unless the Response Type used returns no ID Token from the Authorization Endpoint (such as when using the Authorization Code Flow).
 	if len(c.IDTokenSigningAlgValuesSupported) == 0 {
-		err = errors.Join(errors.New("id_token_signing_alg_values_supported"), err)
+		err = errors.Join(errors.New("id_token_signing_alg_values_supported is required"), err)
 	}
 
 	// RECOMMENDED: ClaimsSupported

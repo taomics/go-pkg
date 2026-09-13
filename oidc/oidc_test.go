@@ -6,10 +6,8 @@ import (
 	"crypto/rsa"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -258,7 +256,7 @@ func TestParse(t *testing.T) {
 		}
 
 		// This proves we went down the right path.
-		if !strings.Contains(err.Error(), "connect to") && !strings.Contains(err.Error(), "invalid url") && !strings.Contains(err.Error(), "stauts=404") {
+		if !strings.Contains(err.Error(), "connect to") && !strings.Contains(err.Error(), "invalid url") && !strings.Contains(err.Error(), "status=404") {
 			t.Errorf("expected a network, url, or 404 error, but got: %v", err)
 		}
 	})
@@ -399,69 +397,17 @@ func TestValidateAudience(t *testing.T) {
 		})
 
 		t.Run("always true", func(t *testing.T) {
+			t.Parallel()
+
 			oidc.SetValidAudience(func(_ []string) bool {
-				return false
+				return true
 			})
 
-			if err := oidc.Export_validateAudience(nil, ""); err == nil {
-				t.Errorf("should not return error")
+			if err := oidc.Export_validateAudience(nil, ""); err != nil {
+				t.Errorf("should not return error: %v", err)
 			}
 		})
 	})
-}
-
-func testJWKSet(t *testing.T, cfguri string) {
-	t.Helper()
-
-	ctx := context.Background()
-
-	set, err := oidc.JWKSet(ctx, cfguri)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if !oidc.CheckCache(cfguri) {
-		t.Errorf("should be registered: %s", cfguri)
-	}
-
-	t.Logf("there is %d keys", set.Len())
-
-	if set.Len() == 0 {
-		t.Fatal("empty JWK set")
-	}
-
-	for idx, key := range set.All() {
-		v, err := jwk.PublicKeyOf(key)
-		if err != nil {
-			t.Errorf("failed to get public key: %v", err)
-			continue
-		}
-
-		kid, _ := v.KeyID()
-		t.Logf("%d: %+v", idx, kid)
-	}
-}
-
-func testParse(t *testing.T, envkey string, opts ...oidc.ParseOption) {
-	t.Helper()
-
-	token := os.Getenv(envkey)
-	if token == "" {
-		t.Skip(envkey + " is not set")
-	}
-
-	ret, err := oidc.Parse(context.Background(), []byte(token), opts...)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	email, err := oidc.Email(ret)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	//nolint:gosec
-	log.Printf("Parse %s: email=%s", envkey, email)
 }
 
 //nolint:cyclop

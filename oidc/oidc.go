@@ -37,8 +37,7 @@ func init() {
 
 	c, err := jwkfetch.NewCache(ctx, httprc.NewClient())
 	if err != nil {
-		slog.Error("failed to create jwk cache", "err", err)
-		return
+		panic(fmt.Sprintf("failed to create jwk cache: %v", err))
 	}
 
 	jwkCache = c
@@ -53,37 +52,33 @@ func SetValidAudience(f func(audiences []string) bool) {
 }
 
 func validateAudience(audiences []string, aud string) error {
-	if aud == "" && validAudience == nil {
+	muxAud.RLock()
+
+	f := validAudience
+
+	muxAud.RUnlock()
+
+	if aud == "" && f == nil {
 		slog.Warn("strongly recommend checking the Audience using SetValidAudience or WithAudience option")
 		return nil
 	}
 
 	if aud != "" {
-		if !cotainsAudience(audiences, aud) {
-			return fmt.Errorf("invalid audience (option): want=%s, got=%s", aud, audiences)
+		if !containsAudience(audiences, aud) {
+			return fmt.Errorf("invalid audience (option): want=%s, got=%q", aud, audiences)
 		}
 
 		return nil
 	}
 
-	var ok bool
-
-	muxAud.RLock()
-
-	if validAudience != nil {
-		ok = validAudience(audiences)
-	}
-
-	muxAud.RUnlock()
-
-	if !ok {
-		return fmt.Errorf("invalid audience (func): got=%v", audiences)
+	if !f(audiences) {
+		return fmt.Errorf("invalid audience (func): got=%q", audiences)
 	}
 
 	return nil
 }
 
-func cotainsAudience(list []string, aud string) bool {
+func containsAudience(list []string, aud string) bool {
 	return slices.Contains(list, aud)
 }
 
@@ -98,8 +93,8 @@ type ParseOption func(*parseOption)
 
 // WithAudience returns a ParseOption that configures an expected audience.
 func WithAudience(aud string) ParseOption {
-	return func(opt *parseOption) {
-		opt.aud = aud
+	return func(o *parseOption) {
+		o.aud = aud
 	}
 }
 
@@ -185,6 +180,21 @@ func Parse(ctx context.Context, token []byte, opts ...ParseOption) (jwt.Token, e
 
 	if time.Until(exp) < expirationMargin {
 		return nil, fmt.Errorf("token is too old: %s", exp)
+	}
+
+	if nbf, ok := t.NotBefore(); ok {
+		if time.Now().Before(nbf) {
+			return nil, fmt.Errorf("token is not active yet: %s", nbf)
+		}
+	}
+
+	cfg, err := fetchProviderMetadata(ctx, cfguri)
+	if err != nil {
+		return nil, err
+	}
+
+	if cfg.Issuer != iss {
+		return nil, fmt.Errorf("issuer mismatch: token=%s, metadata=%s", iss, cfg.Issuer)
 	}
 
 	jwks, err := JWKSet(ctx, cfguri)
@@ -283,7 +293,7 @@ func validateEmailValue(v any) error {
 		return fmt.Errorf("unexpected email value: %v", v)
 	}
 
-	if _, err := mail.ParseAddressList(s); err != nil {
+	if _, err := mail.ParseAddress(s); err != nil {
 		return fmt.Errorf("invalid email: %w", err)
 	}
 
@@ -304,6 +314,11 @@ func fetchProviderMetadata(ctx context.Context, cfguri string) (*ProviderMetadat
 	muxPM.Lock()
 	defer muxPM.Unlock()
 
+	// Double-Checked Locking
+	if cache, ok := cacheProviderMeta[cfguri]; ok {
+		return cache, nil
+	}
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, cfguri, nil)
 	if err != nil {
 		return nil, fmt.Errorf("invalid uri (%s): %w", cfguri, err)
@@ -317,17 +332,16 @@ func fetchProviderMetadata(ctx context.Context, cfguri string) (*ProviderMetadat
 	defer func() { _ = res.Body.Close() }()
 
 	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("http get %s: stauts=%d", cfguri, res.StatusCode)
+		return nil, fmt.Errorf("http get %s: status=%d", cfguri, res.StatusCode)
 	}
 
 	var cfg ProviderMetadata
-
 	if err := json.NewDecoder(res.Body).Decode(&cfg); err != nil {
-		return nil, fmt.Errorf("decode configuration json: %w", err)
+		return nil, fmt.Errorf("parse provider metadata: %w", err)
 	}
 
 	if err := cfg.Valid(); err != nil {
-		return nil, fmt.Errorf("invalid configuration: %w", err)
+		return nil, fmt.Errorf("invalid metadata: %w", err)
 	}
 
 	cacheProviderMeta[cfguri] = &cfg
