@@ -126,24 +126,24 @@ type ProviderMetadata struct {
 
 // Valid validates the provider metadata fields to ensure they are compliant.
 func (c ProviderMetadata) Valid() error {
-	var err error
+	var errs []error
 
 	if c.Issuer == "" {
-		err = errors.Join(errors.New("issuer is required"), err)
+		errs = append(errs, errors.New("issuer is required"))
 	}
 
 	if c.AuthorizationEndpoint == "" {
-		err = errors.Join(errors.New("authorization_endpoint is required"), err)
+		errs = append(errs, errors.New("authorization_endpoint is required"))
 	}
 
 	if c.TokenEndpoint == "" {
-		err = errors.Join(errors.New("token_endpoint is required"), err)
+		errs = append(errs, errors.New("token_endpoint is required"))
 	}
 
 	// RECOMMENDED: UserinfoEndpoint
 
 	if c.JWKSURI == "" {
-		err = errors.Join(errors.New("jwks_uri is required"), err)
+		errs = append(errs, errors.New("jwks_uri is required"))
 	}
 
 	// RECOMMENDED: RegistrationEndpoint
@@ -151,20 +151,20 @@ func (c ProviderMetadata) Valid() error {
 	// RECOMMENDED: ScopesSupported
 
 	if len(c.ResponseTypesSupported) == 0 {
-		err = errors.Join(errors.New("response_types_supported is required"), err)
+		errs = append(errs, errors.New("response_types_supported is required"))
 	}
 
 	// REQUIRED. JSON array containing a list of the Subject Identifier types that this OP supports. Valid types include pairwise and public.
 	if len(c.SubjectTypesSupported) == 0 {
-		err = errors.Join(errors.New("subject_types_supported is required"), err)
+		errs = append(errs, errors.New("subject_types_supported is required"))
 	}
 
 	// REQUIRED. JSON array containing a list of the JWS signing algorithms (alg values) supported by the OP for the ID Token to encode the Claims in a JWT [JWT]. The algorithm RS256 MUST be included. The value none MAY be supported but MUST NOT be used unless the Response Type used returns no ID Token from the Authorization Endpoint (such as when using the Authorization Code Flow).
 	if len(c.IDTokenSigningAlgValuesSupported) == 0 {
-		err = errors.Join(errors.New("id_token_signing_alg_values_supported is required"), err)
+		errs = append(errs, errors.New("id_token_signing_alg_values_supported is required"))
 	}
 
 	// RECOMMENDED: ClaimsSupported
 
-	return err
+	return errors.Join(errs...)
 }

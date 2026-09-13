@@ -27,5 +27,10 @@ func CheckCache(cfguri string) bool {
 		return false
 	}
 
-	return jwkCache.IsRegistered(context.Background(), cfg.JWKSURI)
+	cache, err := getJWKCache()
+	if err != nil {
+		return false
+	}
+
+	return cache.IsRegistered(context.Background(), cfg.JWKSURI)
 }

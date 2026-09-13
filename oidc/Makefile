@@ -2,6 +2,8 @@ SRC := $(shell find . -name '*.go')
 
 export GOEXPERIMENT := jsonv2
 
+.PHONY: lint test test-unit cov cov-unit
+
 lint:
 	golangci-lint run --config ../.golangci.yml --fix
 

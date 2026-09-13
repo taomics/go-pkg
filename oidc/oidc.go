@@ -26,24 +26,17 @@ const (
 )
 
 var (
-	jwkCache          *jwkfetch.Cache
-	cacheProviderMeta map[string]*ProviderMetadata
+	// DefaultHTTPClient is the HTTP client used for fetching provider metadata.
+	DefaultHTTPClient = http.DefaultClient
+
+	getJWKCache = sync.OnceValues(func() (*jwkfetch.Cache, error) {
+		return jwkfetch.NewCache(context.Background(), httprc.NewClient())
+	})
+	cacheProviderMeta = make(map[string]*ProviderMetadata)
 	validAudience     func(audiences []string) bool
 	muxAud            sync.RWMutex
 	muxPM             sync.RWMutex
 )
-
-func init() {
-	ctx := context.Background()
-
-	c, err := jwkfetch.NewCache(ctx, httprc.NewClient())
-	if err != nil {
-		panic(fmt.Sprintf("failed to create jwk cache: %v", err))
-	}
-
-	jwkCache = c
-	cacheProviderMeta = make(map[string]*ProviderMetadata)
-}
 
 // SetValidAudience sets the function used to validate audiences.
 func SetValidAudience(f func(audiences []string) bool) {
@@ -231,18 +224,23 @@ func JWKSet(ctx context.Context, cfguri string) (jwk.Set, error) {
 		return nil, fmt.Errorf("fetch provider metadata: %w", err)
 	}
 
-	if !jwkCache.IsRegistered(ctx, cfg.JWKSURI) {
+	cache, err := getJWKCache()
+	if err != nil {
+		return nil, fmt.Errorf("initialize jwk cache: %w", err)
+	}
+
+	if !cache.IsRegistered(ctx, cfg.JWKSURI) {
 		// Use a timeout context for registration to avoid infinite blocking when the JWKS endpoint is down.
 		regCtx, regCancel := context.WithTimeout(ctx, registrationTimeout)
 		defer regCancel()
 
 		// jwkfetch.Cache is thread-safe.
-		if err := jwkCache.Register(regCtx, cfg.JWKSURI); err != nil {
+		if err := cache.Register(regCtx, cfg.JWKSURI); err != nil {
 			return nil, fmt.Errorf("register jwks_uri: %w", err)
 		}
 	}
 
-	set, err := jwkCache.Lookup(ctx, cfg.JWKSURI)
+	set, err := cache.Lookup(ctx, cfg.JWKSURI)
 	if err != nil {
 		return nil, fmt.Errorf("get jwk set: %w", err)
 	}
@@ -320,7 +318,7 @@ func fetchProviderMetadata(ctx context.Context, cfguri string) (*ProviderMetadat
 		return nil, fmt.Errorf("invalid uri (%s): %w", cfguri, err)
 	}
 
-	res, err := http.DefaultClient.Do(req)
+	res, err := DefaultHTTPClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("connect to %s: %w", cfguri, err)
 	}

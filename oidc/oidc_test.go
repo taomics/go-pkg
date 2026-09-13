@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -171,6 +172,21 @@ func TestParse(t *testing.T) {
 		}
 	})
 
+	t.Run("token with exp remaining less than margin is rejected as too old", func(t *testing.T) {
+		token, err := newJws(key, "https://issuer.example.com", "test-audience", 30*time.Second, nil)
+		if err != nil {
+			t.Fatalf("failed to create JWS: %v", err)
+		}
+
+		_, err = oidc.Parse(context.Background(), []byte(token),
+			oidc.WithAudience("test-audience"),
+			oidc.WithConfigurationURI(ts.URL+"/.well-known/openid-configuration"),
+		)
+		if err == nil {
+			t.Error("expected error for token with < 60s remaining, got nil")
+		}
+	})
+
 	t.Run("token nbf within clock skew is accepted", func(t *testing.T) {
 		token, err := newJws(key, "https://issuer.example.com", "test-audience", time.Hour, map[string]any{
 			jwt.NotBeforeKey: time.Now().Add(10 * time.Second),
@@ -272,6 +288,10 @@ func TestParse(t *testing.T) {
 	})
 
 	t.Run("success with ADB2C issuer", func(t *testing.T) {
+		if os.Getenv("RUN_LIVE_TESTS") == "" {
+			t.Skip("RUN_LIVE_TESTS is not set; skipping live network test")
+		}
+
 		issuer := "https://mytenant.b2clogin.com/12345678-1234-1234-1234-123456789012/v2.0/"
 
 		token, err := newJws(key, issuer, "test-audience", time.Hour, map[string]any{"tfp": "B2C_1_signin"})
@@ -710,6 +730,30 @@ func TestMakeADB2CConfigurationURI(t *testing.T) {
 		_, err := oidc.Export_makeADB2CConfigurationURI("mytenant", tok)
 		if err == nil {
 			t.Error("expected error, got nil")
+		}
+	})
+
+	t.Run("invalid tfp format (traversal)", func(t *testing.T) {
+		t.Parallel()
+
+		tok := jwt.New()
+		_ = tok.Set("tfp", "../malicious_policy")
+
+		_, err := oidc.Export_makeADB2CConfigurationURI("mytenant", tok)
+		if err == nil {
+			t.Error("expected error for traversal in tfp, got nil")
+		}
+	})
+
+	t.Run("invalid acr format (special chars)", func(t *testing.T) {
+		t.Parallel()
+
+		tok := jwt.New()
+		_ = tok.Set("acr", "policy/with/slashes")
+
+		_, err := oidc.Export_makeADB2CConfigurationURI("mytenant", tok)
+		if err == nil {
+			t.Error("expected error for slashes in acr, got nil")
 		}
 	})
 }

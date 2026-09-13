@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
+	"strings"
 
 	"github.com/lestrrat-go/jwx/v4/jwt"
 )
@@ -125,11 +126,41 @@ func makeADB2CConfigurationURI(tenant string, token jwt.Token) (string, error) {
 	return cfguri, nil
 }
 
+func isSafePolicyName(s string) bool {
+	if s == "" {
+		return false
+	}
+
+	return strings.IndexFunc(s, func(r rune) bool {
+		return !isSafePolicyRune(r)
+	}) == -1
+}
+
+func isSafePolicyRune(r rune) bool {
+	if r >= 'a' && r <= 'z' {
+		return true
+	}
+
+	if r >= 'A' && r <= 'Z' {
+		return true
+	}
+
+	if r >= '0' && r <= '9' {
+		return true
+	}
+
+	return r == '_' || r == '-'
+}
+
 func extractADB2CPolicy(token jwt.Token) (string, error) {
 	if v, err := jwt.Get[any](token, "tfp"); err == nil {
 		s, ok := v.(string)
 		if !ok {
 			return "", errors.New("invalid tfp type")
+		}
+
+		if !isSafePolicyName(s) {
+			return "", errors.New("invalid tfp format")
 		}
 
 		return s, nil
@@ -139,6 +170,10 @@ func extractADB2CPolicy(token jwt.Token) (string, error) {
 		s, ok := v.(string)
 		if !ok {
 			return "", errors.New("invalid acr type")
+		}
+
+		if !isSafePolicyName(s) {
+			return "", errors.New("invalid acr format")
 		}
 
 		return s, nil
