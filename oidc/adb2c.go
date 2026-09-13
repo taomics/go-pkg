@@ -1,3 +1,4 @@
+// Package oidc implements OpenID Connect token parsing and validation.
 package oidc
 
 import (

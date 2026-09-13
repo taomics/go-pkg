@@ -6,7 +6,9 @@ import (
 	"github.com/taomics/go-pkg/oidc"
 )
 
+//nolint:gosec
 func TestProviderMetadata_Valid(t *testing.T) {
+	t.Parallel()
 	// A baseline valid metadata struct
 	validMetadata := func() *oidc.ProviderMetadata {
 		return &oidc.ProviderMetadata{
@@ -77,6 +79,8 @@ func TestProviderMetadata_Valid(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			meta := validMetadata()
 			tc.mutator(meta)
 

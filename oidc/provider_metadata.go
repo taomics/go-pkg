@@ -12,6 +12,7 @@ import (
 	"errors"
 )
 
+// ProviderMetadata represents the OpenID Connect 1.0 Provider Metadata.
 // This code is based on the OpenID Connect 1.0 specification, which is
 // licensed under the Apache License, Version 2.0.
 //
@@ -123,6 +124,7 @@ type ProviderMetadata struct {
 	OPTermsOfServiceURI string `json:"op_tos_uri,omitempty"`
 }
 
+// Valid validates the provider metadata fields to ensure they are compliant.
 func (c ProviderMetadata) Valid() error {
 	var err error
 

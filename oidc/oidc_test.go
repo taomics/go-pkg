@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -24,23 +25,25 @@ const (
 )
 
 // newKey generates a new RSA private key.
+//
+//nolint:ireturn
 func newKey() (jwk.Key, error) {
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("generate rsa key: %w", err)
 	}
 
 	key, err := jwk.Import[jwk.Key](priv)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("import raw key: %w", err)
 	}
 
 	if err := key.Set(jwk.KeyIDKey, testKeyID); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("set key ID: %w", err)
 	}
 
 	if err := key.Set(jwk.AlgorithmKey, jwa.RS256()); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("set key algorithm: %w", err)
 	}
 
 	return key, nil
@@ -50,32 +53,32 @@ func newKey() (jwk.Key, error) {
 func newJws(key jwk.Key, issuer, audience string, expiration time.Duration, claims map[string]any) (string, error) {
 	token := jwt.New()
 	if err := token.Set(jwt.IssuerKey, issuer); err != nil {
-		return "", err
+		return "", fmt.Errorf("set issuer: %w", err)
 	}
 
 	if err := token.Set(jwt.AudienceKey, audience); err != nil {
-		return "", err
+		return "", fmt.Errorf("set audience: %w", err)
 	}
 
 	if err := token.Set(jwt.ExpirationKey, time.Now().Add(expiration)); err != nil {
-		return "", err
+		return "", fmt.Errorf("set expiration: %w", err)
 	}
 
 	for k, v := range claims {
 		if err := token.Set(k, v); err != nil {
-			return "", err
+			return "", fmt.Errorf("set custom claim %q: %w", k, err)
 		}
 	}
 
 	signed, err := jwt.Sign(token, jwt.WithKey(jwa.RS256(), key))
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("sign token: %w", err)
 	}
 
 	return string(signed), nil
 }
 
-//nolint:cyclop,gocognit,paralleltest
+//nolint:cyclop,gocognit,paralleltest,gocyclo,maintidx
 func TestParse(t *testing.T) {
 	key, err := newKey()
 	if err != nil {
@@ -265,6 +268,7 @@ func TestParse(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to create key: %v", err)
 		}
+
 		_ = noKidKey.Remove(jwk.KeyIDKey)
 
 		token, err := newJws(noKidKey, "https://issuer.example.com", "test-audience", time.Hour, nil)
@@ -276,7 +280,6 @@ func TestParse(t *testing.T) {
 			oidc.WithAudience("test-audience"),
 			oidc.WithConfigurationURI(ts.URL+"/.well-known/openid-configuration"),
 		)
-
 		if err == nil {
 			t.Error("expected missing kid error, got nil")
 		} else if !strings.Contains(err.Error(), "no key ID") {
@@ -293,6 +296,7 @@ func TestParse(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to create JWS: %v", err)
 		}
+
 		parts := strings.Split(validToken, ".")
 		if len(parts) != 3 {
 			t.Fatalf("unexpected token format")
@@ -304,7 +308,6 @@ func TestParse(t *testing.T) {
 			oidc.WithAudience("test-audience"),
 			oidc.WithConfigurationURI(ts.URL+"/.well-known/openid-configuration"),
 		)
-
 		if err == nil {
 			t.Error("expected missing alg error, got nil")
 		} else if !strings.Contains(err.Error(), "could not verify message") {
@@ -457,11 +460,17 @@ func testParse(t *testing.T, envkey string, opts ...oidc.ParseOption) {
 		t.Fatal(err)
 	}
 
+	//nolint:gosec
 	log.Printf("Parse %s: email=%s", envkey, email)
 }
 
+//nolint:cyclop
 func TestEmail(t *testing.T) {
+	t.Parallel()
+
 	t.Run("Google success", func(t *testing.T) {
+		t.Parallel()
+
 		tok := jwt.New()
 		_ = tok.Set(jwt.IssuerKey, "https://accounts.google.com")
 		_ = tok.Set("email", "google@example.com")
@@ -477,6 +486,8 @@ func TestEmail(t *testing.T) {
 	})
 
 	t.Run("Apple success", func(t *testing.T) {
+		t.Parallel()
+
 		tok := jwt.New()
 		_ = tok.Set(jwt.IssuerKey, "https://appleid.apple.com")
 		_ = tok.Set("email", "apple@example.com")
@@ -492,6 +503,8 @@ func TestEmail(t *testing.T) {
 	})
 
 	t.Run("ADB2C preferred_username success", func(t *testing.T) {
+		t.Parallel()
+
 		tok := jwt.New()
 		_ = tok.Set(jwt.IssuerKey, "https://tenant.b2clogin.com/tfp/")
 		_ = tok.Set("preferred_username", "adb2c-pref@example.com")
@@ -507,6 +520,8 @@ func TestEmail(t *testing.T) {
 	})
 
 	t.Run("ADB2C emails array success", func(t *testing.T) {
+		t.Parallel()
+
 		tok := jwt.New()
 		_ = tok.Set(jwt.IssuerKey, "https://tenant.b2clogin.com/tfp/")
 		_ = tok.Set("emails", []any{"invalid-email", "adb2c-array@example.com"})
@@ -522,6 +537,8 @@ func TestEmail(t *testing.T) {
 	})
 
 	t.Run("unsupported issuer", func(t *testing.T) {
+		t.Parallel()
+
 		tok := jwt.New()
 		_ = tok.Set(jwt.IssuerKey, "https://unsupported.com")
 
@@ -532,6 +549,8 @@ func TestEmail(t *testing.T) {
 	})
 
 	t.Run("invalid email format", func(t *testing.T) {
+		t.Parallel()
+
 		tok := jwt.New()
 		_ = tok.Set(jwt.IssuerKey, "https://accounts.google.com")
 		_ = tok.Set("email", "not-an-email")
@@ -543,6 +562,8 @@ func TestEmail(t *testing.T) {
 	})
 
 	t.Run("empty email", func(t *testing.T) {
+		t.Parallel()
+
 		tok := jwt.New()
 		_ = tok.Set(jwt.IssuerKey, "https://accounts.google.com")
 		_ = tok.Set("email", "")
@@ -554,6 +575,8 @@ func TestEmail(t *testing.T) {
 	})
 
 	t.Run("unexpected type email", func(t *testing.T) {
+		t.Parallel()
+
 		tok := jwt.New()
 		_ = tok.Set(jwt.IssuerKey, "https://accounts.google.com")
 		_ = tok.Set("email", 123)
@@ -565,6 +588,8 @@ func TestEmail(t *testing.T) {
 	})
 
 	t.Run("ADB2C no email in token", func(t *testing.T) {
+		t.Parallel()
+
 		tok := jwt.New()
 		_ = tok.Set(jwt.IssuerKey, "https://tenant.b2clogin.com/tfp/")
 
@@ -575,6 +600,8 @@ func TestEmail(t *testing.T) {
 	})
 
 	t.Run("ADB2C unexpected emails value type", func(t *testing.T) {
+		t.Parallel()
+
 		tok := jwt.New()
 		_ = tok.Set(jwt.IssuerKey, "https://tenant.b2clogin.com/tfp/")
 		_ = tok.Set("emails", "not-an-array")
@@ -586,6 +613,8 @@ func TestEmail(t *testing.T) {
 	})
 
 	t.Run("ADB2C preferred_username wrong type", func(t *testing.T) {
+		t.Parallel()
+
 		tok := jwt.New()
 		_ = tok.Set(jwt.IssuerKey, "https://tenant.b2clogin.com/tfp/")
 		_ = tok.Set("preferred_username", 123)
@@ -599,7 +628,11 @@ func TestEmail(t *testing.T) {
 }
 
 func TestMakeADB2CConfigurationURI(t *testing.T) {
+	t.Parallel()
+
 	t.Run("common tenant without policy", func(t *testing.T) {
+		t.Parallel()
+
 		tok := jwt.New()
 
 		uri, err := oidc.Export_makeADB2CConfigurationURI("", tok)
@@ -614,6 +647,8 @@ func TestMakeADB2CConfigurationURI(t *testing.T) {
 	})
 
 	t.Run("common tenant with policy (error)", func(t *testing.T) {
+		t.Parallel()
+
 		tok := jwt.New()
 		_ = tok.Set("tfp", "B2C_1_signin")
 
@@ -624,6 +659,8 @@ func TestMakeADB2CConfigurationURI(t *testing.T) {
 	})
 
 	t.Run("specific tenant with policy", func(t *testing.T) {
+		t.Parallel()
+
 		tok := jwt.New()
 		_ = tok.Set("tfp", "B2C_1_signin")
 
@@ -639,6 +676,8 @@ func TestMakeADB2CConfigurationURI(t *testing.T) {
 	})
 
 	t.Run("specific tenant without policy", func(t *testing.T) {
+		t.Parallel()
+
 		tok := jwt.New()
 
 		uri, err := oidc.Export_makeADB2CConfigurationURI("mytenant", tok)
@@ -653,6 +692,8 @@ func TestMakeADB2CConfigurationURI(t *testing.T) {
 	})
 
 	t.Run("invalid tfp type", func(t *testing.T) {
+		t.Parallel()
+
 		tok := jwt.New()
 		_ = tok.Set("tfp", 123)
 

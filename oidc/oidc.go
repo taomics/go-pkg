@@ -20,7 +20,8 @@ import (
 )
 
 const (
-	expirationMargin = 60 * time.Second
+	expirationMargin    = 60 * time.Second
+	registrationTimeout = 5 * time.Second
 )
 
 var (
@@ -44,6 +45,7 @@ func init() {
 	cacheProviderMeta = make(map[string]*ProviderMetadata)
 }
 
+// SetValidAudience sets the function used to validate audiences.
 func SetValidAudience(f func(audiences []string) bool) {
 	muxAud.Lock()
 	validAudience = f
@@ -91,26 +93,45 @@ type parseOption struct {
 	configurationURI string
 }
 
+// ParseOption represents an option for parsing an OIDC token.
 type ParseOption func(*parseOption)
 
+// WithAudience returns a ParseOption that configures an expected audience.
 func WithAudience(aud string) ParseOption {
 	return func(opt *parseOption) {
 		opt.aud = aud
 	}
 }
 
+// WithAzureADB2CTenant returns a ParseOption that configures the expected Azure AD B2C tenant.
 func WithAzureADB2CTenant(tenant string) ParseOption {
 	return func(o *parseOption) {
 		o.adb2cTenant = tenant
 	}
 }
 
+// WithConfigurationURI returns a ParseOption that overrides the OpenID configuration URI.
 func WithConfigurationURI(uri string) ParseOption {
 	return func(o *parseOption) {
 		o.configurationURI = uri
 	}
 }
 
+// Parse parses and validates an OIDC ID token, returning the parsed jwt.Token.
+//
+// It automatically detects the token's issuer (supporting Google, Apple, and Azure AD B2C),
+// fetches the respective OpenID provider metadata and JWK set (JWKS) using an internal cache,
+// and cryptographically verifies the token signature.
+//
+// In addition to cryptographic signature validation, it performs custom checks including:
+//   - Verifying the Audience claim (customizable via WithAudience or SetValidAudience).
+//   - Verifying that the token's Expiration is valid, incorporating a 60-second margin.
+//
+// To configure custom behaviors, you can pass ParseOptions such as:
+//   - WithAudience(aud): Limits valid audience to a specific string.
+//   - WithAzureADB2CTenant(tenant): Sets the expected tenant name for Azure AD B2C issuer validation.
+//   - WithConfigurationURI(uri): Overrides the default OpenID discovery endpoint.
+//
 //nolint:cyclop,funlen,ireturn
 func Parse(ctx context.Context, token []byte, opts ...ParseOption) (jwt.Token, error) {
 	var opt parseOption
@@ -183,6 +204,15 @@ func Parse(ctx context.Context, token []byte, opts ...ParseOption) (jwt.Token, e
 	return parsedToken, nil
 }
 
+// JWKSet fetches and returns the JSON Web Key (JWK) set from the given OIDC configuration URI.
+//
+// It first retrieves the provider metadata to discover the `jwks_uri`. Then, it registers
+// the discovered URI to an internal, thread-safe, auto-refreshing jwkfetch.Cache.
+//
+// To prevent network downtime from blocking the application indefinitely, registration
+// is protected by a 5-second timeout context (or the provided context's timeout).
+// Subsequent lookups read from the local cache.
+//
 //nolint:ireturn
 func JWKSet(ctx context.Context, cfguri string) (jwk.Set, error) {
 	cfg, err := fetchProviderMetadata(ctx, cfguri)
@@ -192,7 +222,7 @@ func JWKSet(ctx context.Context, cfguri string) (jwk.Set, error) {
 
 	if !jwkCache.IsRegistered(ctx, cfg.JWKSURI) {
 		// Use a timeout context for registration to avoid infinite blocking when the JWKS endpoint is down.
-		regCtx, regCancel := context.WithTimeout(ctx, 5*time.Second)
+		regCtx, regCancel := context.WithTimeout(ctx, registrationTimeout)
 		defer regCancel()
 
 		// jwkfetch.Cache is thread-safe.
@@ -209,6 +239,13 @@ func JWKSet(ctx context.Context, cfguri string) (jwk.Set, error) {
 	return set, nil
 }
 
+// Email extracts, normalizes, and validates the email address claim from the given OIDC token.
+//
+// It supports extracting email addresses from various provider-specific claims:
+//   - Standard "email" claim (Google, Apple).
+//   - "preferred_username" or the "emails" string array (Azure AD B2C).
+//
+// Extracted emails are parsed and validated to ensure they conform to a correct email format.
 func Email(t jwt.Token) (string, error) {
 	iss, ok := t.Issuer()
 	if !ok {
@@ -277,7 +314,7 @@ func fetchProviderMetadata(ctx context.Context, cfguri string) (*ProviderMetadat
 		return nil, fmt.Errorf("connect to %s: %w", cfguri, err)
 	}
 
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 
 	if res.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("http get %s: stauts=%d", cfguri, res.StatusCode)
