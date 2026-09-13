@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/mail"
@@ -23,6 +24,7 @@ const (
 	expirationMargin     = 60 * time.Second
 	registrationTimeout  = 5 * time.Second
 	metadataFetchTimeout = 5 * time.Second
+	maxMetadataSize      = 1024 * 1024 // 1MB
 )
 
 var (
@@ -330,7 +332,7 @@ func fetchProviderMetadata(ctx context.Context, cfguri string) (*ProviderMetadat
 	}
 
 	var cfg ProviderMetadata
-	if err := json.NewDecoder(res.Body).Decode(&cfg); err != nil {
+	if err := json.NewDecoder(io.LimitReader(res.Body, maxMetadataSize)).Decode(&cfg); err != nil {
 		return nil, fmt.Errorf("parse provider metadata: %w", err)
 	}
 

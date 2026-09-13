@@ -287,6 +287,27 @@ func TestParse(t *testing.T) {
 		}
 	})
 
+	t.Run("metadata response exceeds size limit", func(t *testing.T) {
+		largeTs := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"issuer": "https://issuer.example.com", "dummy": "` + strings.Repeat("A", 1024*1024+10) + `"}`))
+		}))
+		defer largeTs.Close()
+
+		token, err := newJws(key, "https://issuer.example.com", "test-audience", time.Hour, nil)
+		if err != nil {
+			t.Fatalf("failed to create JWS: %v", err)
+		}
+
+		_, err = oidc.Parse(context.Background(), []byte(token),
+			oidc.WithAudience("test-audience"),
+			oidc.WithConfigurationURI(largeTs.URL+"/.well-known/openid-configuration"),
+		)
+		if err == nil {
+			t.Error("expected metadata size limit error, got nil")
+		}
+	})
+
 	t.Run("success with ADB2C issuer", func(t *testing.T) {
 		if os.Getenv("RUN_LIVE_TESTS") == "" {
 			t.Skip("RUN_LIVE_TESTS is not set; skipping live network test")
