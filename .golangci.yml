@@ -5,37 +5,35 @@ linters:
     - canonicalheader
     - depguard
     - err113
+    - exhaustruct # deprecated
     - gochecknoglobals
+    - gochecknoinits
+    - godox
+    - gomoddirectives
+    - gomodguard
+    - gosmopolitan
+    - noinlineerr
     - lll
     - tagliatelle
     - varnamelen
-    - noinlineerr
     - wsl
   settings:
+    exhaustruct_v5:
+      enforce-patterns:
+        - 'github.com/taomics/.*'
     nlreturn:
       block-size: 3
   exclusions:
     generated: lax
-    presets:
-      - comments
-      - common-false-positives
-      - legacy
-      - std-error-handling
+    warn-unused: true
     rules:
-      - linters:
+      - path: _test\.go
+        linters:
+          - exhaustruct_v5
           - funlen
+          - revive
+          - goconst
           - gocritic
-        path: _test\.go
-      - path: (.+)\.go$
-        text: fmt.Errorf can be replaced with errors.New
-      - path: (.+)\.go$
-        text: 'var-naming: don''t use underscores in Go names;'
-      - path: (.+)\.go$
-        text: 'ST1003: should not use underscores in Go names;'
-    paths:
-      - third_party$
-      - builtin$
-      - examples$
 formatters:
   enable:
     - gci
@@ -43,8 +41,4 @@ formatters:
     - gofumpt
     - goimports
   exclusions:
-    generated: lax
-    paths:
-      - third_party$
-      - builtin$
-      - examples$
+    generated: strict
