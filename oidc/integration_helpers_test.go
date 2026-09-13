@@ -14,6 +14,10 @@ import (
 func testJWKSet(t *testing.T, cfguri string) {
 	t.Helper()
 
+	if os.Getenv("RUN_LIVE_TESTS") == "" {
+		t.Skip("RUN_LIVE_TESTS is not set; skipping live network test")
+	}
+
 	ctx := context.Background()
 
 	set, err := oidc.JWKSet(ctx, cfguri)

@@ -171,6 +171,40 @@ func TestParse(t *testing.T) {
 		}
 	})
 
+	t.Run("token nbf within clock skew is accepted", func(t *testing.T) {
+		token, err := newJws(key, "https://issuer.example.com", "test-audience", time.Hour, map[string]any{
+			jwt.NotBeforeKey: time.Now().Add(10 * time.Second),
+		})
+		if err != nil {
+			t.Fatalf("failed to create JWS: %v", err)
+		}
+
+		_, err = oidc.Parse(context.Background(), []byte(token),
+			oidc.WithAudience("test-audience"),
+			oidc.WithConfigurationURI(ts.URL+"/.well-known/openid-configuration"),
+		)
+		if err != nil {
+			t.Errorf("expected success for nbf within clock skew margin, got error: %v", err)
+		}
+	})
+
+	t.Run("token nbf too far in future is rejected", func(t *testing.T) {
+		token, err := newJws(key, "https://issuer.example.com", "test-audience", time.Hour, map[string]any{
+			jwt.NotBeforeKey: time.Now().Add(2 * time.Minute),
+		})
+		if err != nil {
+			t.Fatalf("failed to create JWS: %v", err)
+		}
+
+		_, err = oidc.Parse(context.Background(), []byte(token),
+			oidc.WithAudience("test-audience"),
+			oidc.WithConfigurationURI(ts.URL+"/.well-known/openid-configuration"),
+		)
+		if err == nil {
+			t.Error("expected not active yet error, got nil")
+		}
+	})
+
 	t.Run("invalid audience", func(t *testing.T) {
 		token, err := newJws(key, "https://issuer.example.com", "wrong-audience", time.Hour, nil)
 		if err != nil {
@@ -573,6 +607,7 @@ func TestEmail(t *testing.T) {
 	})
 }
 
+//nolint:cyclop
 func TestMakeADB2CConfigurationURI(t *testing.T) {
 	t.Parallel()
 
@@ -642,6 +677,35 @@ func TestMakeADB2CConfigurationURI(t *testing.T) {
 
 		tok := jwt.New()
 		_ = tok.Set("tfp", 123)
+
+		_, err := oidc.Export_makeADB2CConfigurationURI("mytenant", tok)
+		if err == nil {
+			t.Error("expected error, got nil")
+		}
+	})
+
+	t.Run("specific tenant with policy in acr", func(t *testing.T) {
+		t.Parallel()
+
+		tok := jwt.New()
+		_ = tok.Set("acr", "B2C_1_signin_acr")
+
+		uri, err := oidc.Export_makeADB2CConfigurationURI("mytenant", tok)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		expected := "https://mytenant.b2clogin.com/mytenant.onmicrosoft.com/B2C_1_signin_acr/v2.0/.well-known/openid-configuration"
+		if uri != expected {
+			t.Errorf("got %q, want %q", uri, expected)
+		}
+	})
+
+	t.Run("invalid acr type", func(t *testing.T) {
+		t.Parallel()
+
+		tok := jwt.New()
+		_ = tok.Set("acr", 123)
 
 		_, err := oidc.Export_makeADB2CConfigurationURI("mytenant", tok)
 		if err == nil {

@@ -20,8 +20,9 @@ import (
 )
 
 const (
-	expirationMargin    = 60 * time.Second
-	registrationTimeout = 5 * time.Second
+	expirationMargin     = 60 * time.Second
+	registrationTimeout  = 5 * time.Second
+	metadataFetchTimeout = 5 * time.Second
 )
 
 var (
@@ -183,7 +184,7 @@ func Parse(ctx context.Context, token []byte, opts ...ParseOption) (jwt.Token, e
 	}
 
 	if nbf, ok := t.NotBefore(); ok {
-		if time.Now().Before(nbf) {
+		if time.Now().Add(expirationMargin).Before(nbf) {
 			return nil, fmt.Errorf("token is not active yet: %s", nbf)
 		}
 	}
@@ -311,15 +312,10 @@ func fetchProviderMetadata(ctx context.Context, cfguri string) (*ProviderMetadat
 		return cache, nil
 	}
 
-	muxPM.Lock()
-	defer muxPM.Unlock()
+	fetchCtx, cancel := context.WithTimeout(ctx, metadataFetchTimeout)
+	defer cancel()
 
-	// Double-Checked Locking
-	if cache, ok := cacheProviderMeta[cfguri]; ok {
-		return cache, nil
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, cfguri, nil)
+	req, err := http.NewRequestWithContext(fetchCtx, http.MethodGet, cfguri, nil)
 	if err != nil {
 		return nil, fmt.Errorf("invalid uri (%s): %w", cfguri, err)
 	}
@@ -344,7 +340,9 @@ func fetchProviderMetadata(ctx context.Context, cfguri string) (*ProviderMetadat
 		return nil, fmt.Errorf("invalid metadata: %w", err)
 	}
 
+	muxPM.Lock()
 	cacheProviderMeta[cfguri] = &cfg
+	muxPM.Unlock()
 
 	return &cfg, nil
 }

@@ -8,7 +8,7 @@ import (
 	"github.com/taomics/go-pkg/oidc"
 )
 
-func TestJWKSet_apple(t *testing.T) {
+func TestJWKSet_Apple(t *testing.T) {
 	t.Parallel()
 	testJWKSet(t, oidc.Export_appleConfigurationURI)
 }

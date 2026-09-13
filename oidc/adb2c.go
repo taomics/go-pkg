@@ -80,17 +80,10 @@ func adb2cEmail(t jwt.Token) (string, error) {
 //	https://{tenant}.b2clogin.com/{tenant}.onmicrosoft.com/{policy}/v2.0/.well-known/openid-configuration
 //
 // Therefore, this function needs to manually set the tenant and policy values.
-//
-//nolint:cyclop
 func makeADB2CConfigurationURI(tenant string, token jwt.Token) (string, error) {
-	var policy string
-
-	if v, err := jwt.Get[any](token, "tfp"); err == nil {
-		if s, ok := v.(string); ok {
-			policy = s
-		} else {
-			return "", errors.New("invalid tfp type")
-		}
+	policy, err := extractADB2CPolicy(token)
+	if err != nil {
+		return "", err
 	}
 
 	if tenant == "" && policy != "" {
@@ -130,4 +123,26 @@ func makeADB2CConfigurationURI(tenant string, token jwt.Token) (string, error) {
 	}
 
 	return cfguri, nil
+}
+
+func extractADB2CPolicy(token jwt.Token) (string, error) {
+	if v, err := jwt.Get[any](token, "tfp"); err == nil {
+		s, ok := v.(string)
+		if !ok {
+			return "", errors.New("invalid tfp type")
+		}
+
+		return s, nil
+	}
+
+	if v, err := jwt.Get[any](token, "acr"); err == nil {
+		s, ok := v.(string)
+		if !ok {
+			return "", errors.New("invalid acr type")
+		}
+
+		return s, nil
+	}
+
+	return "", nil
 }
