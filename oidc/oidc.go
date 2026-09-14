@@ -30,7 +30,7 @@ const (
 var (
 	// DefaultHTTPClient is the HTTP client used for fetching provider metadata and JWKS.
 	// If customizing, configure it before any calls to Parse or JWKSet.
-	DefaultHTTPClient = http.DefaultClient
+	DefaultHTTPClient = &http.Client{} //nolint:exhaustruct,exhaustruct_v5
 
 	getJWKCache = sync.OnceValues(func() (*jwkfetch.Cache, error) {
 		return jwkfetch.NewCache(
