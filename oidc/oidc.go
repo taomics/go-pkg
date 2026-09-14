@@ -28,11 +28,16 @@ const (
 )
 
 var (
-	// DefaultHTTPClient is the HTTP client used for fetching provider metadata.
-	DefaultHTTPClient = http.DefaultClient
+	// DefaultHTTPClient is the HTTP client used for fetching provider metadata and JWKS.
+	// If customizing, configure it before any calls to Parse or JWKSet.
+	DefaultHTTPClient = &http.Client{} //nolint:exhaustruct,exhaustruct_v5
 
 	getJWKCache = sync.OnceValues(func() (*jwkfetch.Cache, error) {
-		return jwkfetch.NewCache(context.Background(), httprc.NewClient())
+		return jwkfetch.NewCache(
+			context.Background(),
+			httprc.NewClient(),
+			jwkfetch.WithHTTPClient(DefaultHTTPClient),
+		)
 	})
 	cacheProviderMeta = make(map[string]*ProviderMetadata)
 	validAudience     func(audiences []string) bool
