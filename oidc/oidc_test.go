@@ -6,6 +6,7 @@ import (
 	"crypto/rsa"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -777,4 +778,95 @@ func TestMakeADB2CConfigurationURI(t *testing.T) {
 			t.Error("expected error for slashes in acr, got nil")
 		}
 	})
+}
+
+type testRoundTripper func(req *http.Request) (*http.Response, error)
+
+func (f testRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
+
+//nolint:cyclop,paralleltest
+func TestDefaultHTTPClient_UsedForJWKS(t *testing.T) {
+	origTransport := oidc.DefaultHTTPClient.Transport
+	defer func() {
+		oidc.DefaultHTTPClient.Transport = origTransport
+	}()
+
+	key, err := newKey()
+	if err != nil {
+		t.Fatalf("failed to create key: %v", err)
+	}
+
+	pubKey, err := key.PublicKey()
+	if err != nil {
+		t.Fatalf("failed to create public key: %v", err)
+	}
+
+	jwks := jwk.NewSet()
+	if err := jwks.AddKey(pubKey); err != nil {
+		t.Fatalf("failed to add key to jwks: %v", err)
+	}
+
+	jwksJSON, err := json.Marshal(jwks)
+	if err != nil {
+		t.Fatalf("failed to marshal jwks: %v", err)
+	}
+
+	var metadataFetched, jwksFetched bool
+
+	oidc.DefaultHTTPClient.Transport = testRoundTripper(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.String() {
+		case "https://custom-client-test.example.com/.well-known/openid-configuration":
+			metadataFetched = true
+			body := `{
+				"issuer": "https://custom-client-test.example.com",
+				"jwks_uri": "https://custom-client-test.example.com/keys",
+				"id_token_signing_alg_values_supported": ["RS256"],
+				"subject_types_supported": ["public"],
+				"response_types_supported": ["id_token"],
+				"token_endpoint": "https://custom-client-test.example.com/token",
+				"authorization_endpoint": "https://custom-client-test.example.com/auth"
+			}`
+
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Request:    req,
+			}, nil
+		case "https://custom-client-test.example.com/keys":
+			jwksFetched = true
+
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+				Body:       io.NopCloser(strings.NewReader(string(jwksJSON))),
+				Request:    req,
+			}, nil
+		default:
+			return &http.Response{
+				StatusCode: http.StatusNotFound,
+				Body:       io.NopCloser(strings.NewReader("not found")),
+				Request:    req,
+			}, nil
+		}
+	})
+
+	set, err := oidc.JWKSet(context.Background(), "https://custom-client-test.example.com/.well-known/openid-configuration")
+	if err != nil {
+		t.Fatalf("JWKSet failed: %v", err)
+	}
+
+	if set.Len() == 0 {
+		t.Error("expected non-empty key set")
+	}
+
+	if !metadataFetched {
+		t.Error("expected metadata to be fetched via DefaultHTTPClient")
+	}
+
+	if !jwksFetched {
+		t.Error("expected JWKS to be fetched via DefaultHTTPClient")
+	}
 }
