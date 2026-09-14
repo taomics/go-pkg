@@ -67,7 +67,7 @@ func WithAzureADB2CTenant(tenant string) Option {
 // the corresponding provider metadata and JWK set to verify the token signature.
 func Authenticate(ctx context.Context, authHeader string, opts ...Option) (context.Context, error) {
 	if authHeader == "" {
-		return nil, errors.New("authorization header is empty")
+		return ctx, errors.New("authorization header is empty")
 	}
 
 	var opt option
@@ -77,7 +77,7 @@ func Authenticate(ctx context.Context, authHeader string, opts ...Option) (conte
 
 	token, err := extractBearerToken(authHeader)
 	if err != nil {
-		return nil, err
+		return ctx, err
 	}
 
 	var parseOpts []oidc.ParseOption
@@ -88,12 +88,12 @@ func Authenticate(ctx context.Context, authHeader string, opts ...Option) (conte
 
 	t, err := oidc.Parse(ctx, []byte(token), parseOpts...)
 	if err != nil {
-		return nil, fmt.Errorf("token parse error: %w", err)
+		return ctx, fmt.Errorf("token parse error: %w", err)
 	}
 
 	email, err := oidc.Email(t)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get email: %w", err)
+		return ctx, fmt.Errorf("failed to get email: %w", err)
 	}
 
 	return SetEmail(ctx, email), nil

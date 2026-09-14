@@ -1,7 +1,6 @@
 package auth_test
 
 import (
-	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/json"
@@ -42,8 +41,14 @@ func TestMain(m *testing.M) {
 		panic(fmt.Sprintf("failed to create JWK: %v", err))
 	}
 
-	_ = jwkKey.Set(jwk.KeyIDKey, "test-kid")
-	_ = jwkKey.Set(jwk.AlgorithmKey, jwa.RS256())
+	if err := jwkKey.Set(jwk.KeyIDKey, "test-kid"); err != nil {
+		panic(fmt.Sprintf("failed to set KeyIDKey: %v", err))
+	}
+
+	if err := jwkKey.Set(jwk.AlgorithmKey, jwa.RS256()); err != nil {
+		panic(fmt.Sprintf("failed to set AlgorithmKey: %v", err))
+	}
+
 	testKey = jwkKey
 
 	pubKey, err := testKey.PublicKey()
@@ -52,7 +57,10 @@ func TestMain(m *testing.M) {
 	}
 
 	jwks := jwk.NewSet()
-	_ = jwks.AddKey(pubKey)
+
+	if err := jwks.AddKey(pubKey); err != nil {
+		panic(fmt.Sprintf("failed to add public key to JWKS: %v", err))
+	}
 
 	jwksJSON, err := json.Marshal(jwks)
 	if err != nil {
@@ -160,7 +168,7 @@ func createToken(t *testing.T, key jwk.Key, issuer, email string, extraClaims ma
 func TestEmailAndSetEmail(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Test Email with no email in context
 	_, err := auth.Email(ctx)
@@ -188,7 +196,7 @@ func TestAuthenticate_Google(t *testing.T) {
 	token := createToken(t, testKey, "https://accounts.google.com", "google@example.com", longClaim)
 	authHeader := "Bearer " + token
 
-	ctx, err := auth.Authenticate(context.Background(), authHeader)
+	ctx, err := auth.Authenticate(t.Context(), authHeader)
 	if err != nil {
 		t.Fatalf("Authenticate failed: %v", err)
 	}
@@ -209,7 +217,7 @@ func TestAuthenticate_Apple(t *testing.T) {
 	token := createToken(t, testKey, "https://appleid.apple.com", "apple@example.com", longClaim)
 	authHeader := "Bearer " + token
 
-	ctx, err := auth.Authenticate(context.Background(), authHeader)
+	ctx, err := auth.Authenticate(t.Context(), authHeader)
 	if err != nil {
 		t.Fatalf("Authenticate failed: %v", err)
 	}
@@ -233,7 +241,7 @@ func TestAuthenticate_AzureADB2C(t *testing.T) {
 	token := createToken(t, testKey, "https://mytenant.b2clogin.com/mytenant-uuid/v2.0", "b2c@example.com", claims)
 	authHeader := "Bearer " + token
 
-	ctx, err := auth.Authenticate(context.Background(), authHeader, auth.WithAzureADB2CTenant("mytenant"))
+	ctx, err := auth.Authenticate(t.Context(), authHeader, auth.WithAzureADB2CTenant("mytenant"))
 	if err != nil {
 		t.Fatalf("Authenticate failed: %v", err)
 	}
@@ -253,14 +261,14 @@ func TestAuthenticate_Errors(t *testing.T) {
 	longClaim := map[string]any{"dummy": strings.Repeat("a", 500)}
 
 	t.Run("Empty Auth Header", func(t *testing.T) {
-		_, err := auth.Authenticate(context.Background(), "")
+		_, err := auth.Authenticate(t.Context(), "")
 		if err == nil {
 			t.Error("expected error for empty auth header, got nil")
 		}
 	})
 
 	t.Run("Header Too Short", func(t *testing.T) {
-		_, err := auth.Authenticate(context.Background(), "Bearer short")
+		_, err := auth.Authenticate(t.Context(), "Bearer short")
 		if err == nil {
 			t.Error("expected error for short auth header, got nil")
 		}
@@ -270,7 +278,7 @@ func TestAuthenticate_Errors(t *testing.T) {
 		token := createToken(t, testKey, "https://accounts.google.com", "google@example.com", longClaim)
 		authHeader := "Token " + token
 
-		_, err := auth.Authenticate(context.Background(), authHeader)
+		_, err := auth.Authenticate(t.Context(), authHeader)
 		if err == nil {
 			t.Error("expected error for missing Bearer prefix, got nil")
 		}
@@ -279,7 +287,7 @@ func TestAuthenticate_Errors(t *testing.T) {
 	t.Run("Invalid Token Format", func(t *testing.T) {
 		authHeader := "Bearer " + strings.Repeat("a", 500)
 
-		_, err := auth.Authenticate(context.Background(), authHeader)
+		_, err := auth.Authenticate(t.Context(), authHeader)
 		if err == nil {
 			t.Error("expected error for invalid token format, got nil")
 		}
@@ -301,7 +309,7 @@ func TestAuthenticate_Errors(t *testing.T) {
 
 		authHeader := "Bearer " + string(signed)
 
-		_, err = auth.Authenticate(context.Background(), authHeader)
+		_, err = auth.Authenticate(t.Context(), authHeader)
 		if err == nil {
 			t.Error("expected error for expired token, got nil")
 		}
@@ -311,7 +319,7 @@ func TestAuthenticate_Errors(t *testing.T) {
 		token := createToken(t, testKey, "https://accounts.google.com", "", longClaim)
 		authHeader := "Bearer " + token
 
-		_, err := auth.Authenticate(context.Background(), authHeader)
+		_, err := auth.Authenticate(t.Context(), authHeader)
 		if err == nil {
 			t.Error("expected error for token missing email claim, got nil")
 		} else {
@@ -332,7 +340,7 @@ func TestAuthenticate_SetValidAudience(t *testing.T) {
 	token := createToken(t, testKey, "https://accounts.google.com", "google@example.com", longClaim)
 	authHeader := "Bearer " + token
 
-	_, err := auth.Authenticate(context.Background(), authHeader)
+	_, err := auth.Authenticate(t.Context(), authHeader)
 	if err == nil {
 		t.Error("expected error due to custom audience validator rejecting the token, got nil")
 	}

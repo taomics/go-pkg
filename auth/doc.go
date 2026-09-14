@@ -11,13 +11,13 @@
 //
 //	ctx, err := auth.Authenticate(ctx, authHeader)
 //	if err != nil {
-//	    // handle authentication error
+//		// handle authentication error
 //	}
 //
 // Once authenticated, you can retrieve the user's email from the context:
 //
 //	email, err := auth.Email(ctx)
 //	if err != nil {
-//	    // handle error
+//		// handle error
 //	}
 package auth
