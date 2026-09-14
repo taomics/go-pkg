@@ -8,22 +8,25 @@ on:
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
+    env:
+      GOEXPERIMENT: jsonv2
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v7
 
     - name: Set up Go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v7
       with:
-        go-version: '1.22'
+        go-version: '1.26'
+        cache: true
 
     - name: Install dependencies
       working-directory: ./auth
       run: go mod download
 
     - name: Run golangci-lint
-      uses: golangci/golangci-lint-action@v5
+      uses: golangci/golangci-lint-action@v9
       with:
         version: latest
         working-directory: ./auth
@@ -32,3 +35,7 @@ jobs:
       working-directory: ./auth
       run: go test -v ./...
 
+    - name: Run govulncheck
+      uses: golang/govulncheck-action@v1
+      with:
+        work-dir: ./auth
